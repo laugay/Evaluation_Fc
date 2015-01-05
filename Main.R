@@ -7,6 +7,19 @@
 # This scripts uses SLiM (Messer 2013) for simulating the data
 # http://messerlab.org/software/
 
+# This script uses the following packages:
+require(adegenet)
+require(pegas)
+require(seqinr)
+
+
+#---------------
+# MAIN SETTINGS
+#---------------
+
+# Set seed for random number generation
+set.seed(368898)
+
 # set working directory
 setwd("/home/miguel/Work/Research/2012.SelfAdapt/Evaluation_Fc")
 
@@ -15,6 +28,7 @@ options("scipen"=999)
 
 # tools to write/read SLiM input/output
 source("slim_tools.R")
+
 
 #------------
 # PARAMETERS
@@ -32,7 +46,6 @@ N <- theta/(4*u*genome_length)
 # selection coeficient
 new_scoef <- 0.6
 
-set.seed(368898)
 
 #
 
