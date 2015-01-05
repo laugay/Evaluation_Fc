@@ -29,6 +29,9 @@ options("scipen"=999)
 # tools to write/read SLiM input/output
 source("slim_tools.R")
 
+# Simulation ID for file identification
+simID <- "test"
+
 
 #------------
 # PARAMETERS
@@ -56,29 +59,41 @@ drift_period_duration <- 30*N
 
 # 1. SIMULATION OF A PURE DRIFT PERIOD
 
-######################## SIMULATION OF A PURE DRIFT PERIOD ########################################################
+# Set file names
+slim_in_drift  <- paste0(simID,"_drift.txt")
+slim_out_drift <- paste0(simID,"_drift.out")
+slim_log_drift <- paste0(simID,"_drift.log")
 
-simID    <- "drift"
-slim_in  <- paste(simID,".txt",sep="")
-slim_out <- paste(simID,".out",sep="")
-slim_log <- paste(simID,".log",sep="")
+# Write slim input file
+writeMutation(file=slim_in_drift, number_of_types=1, h=0.5, DFE="f", s=0)
+writeMutationRate(file=slim_in_drift, u=u)  
+writeGenomicElement(file=slim_in_drift, number_of_types=1, mut_type=list("m1"), prop=list(1))
+writeChromosome(file=slim_in_drift, element_type="g1", start=1, end=genome_length)
+writeRecombination(file=slim_in_drift, interval_end=genome_length, r=0)
+writeGenerations(file=slim_in_drift, t=drift_period_duration, append=T)
+writeDemography(file=slim_in_drift, type="P", time=1, pop="p1", N=N)
+writeDemography(file=slim_in_drift, type="S", time=1, pop="p1", sigma=sigma, append_demography=T)
+writeOutput(file=slim_in_drift, type="A", time=drift_period_duration, filename=slim_out_drift)
+writeSeed(file=slim_in_drift, seed=round(runif(1,-2^31,2^31)) )
 
-writeMutation(file=slim_in, number_of_types=1, h=0.5, DFE="f", s=0)
-writeMutationRate(file=slim_in, u=u)  
-writeGenomicElement(file=slim_in, number_of_types=1, mut_type=list("m1"), prop=list(1))
-writeChromosome(file=slim_in, element_type="g1", start=1, end=genome_length)
-writeRecombination(file=slim_in, interval_end=genome_length, r=0)
-writeGenerations(file=slim_in, t=drift_period_duration, append=T)
-writeDemography(file=slim_in, type="P", time=1, pop="p1", N=N)
-writeDemography(file=slim_in, type="S", time=1, pop="p1", sigma=sigma, append_demography=T)
-writeOutput(file=slim_in, type="A", time=drift_period_duration, filename=slim_out)
-writeSeed(file=slim_in, seed=round(runif(1,-2^31,2^31)) )
-
-system(paste("./slim",slim_in,">",slim_log))
+# Run slim
+system(paste("./slim",slim_in_drift,">",slim_log_drift))
 # NB: slim executable must be in the same folder as slim input file
 
+# 2. SIMULATION OF THE PERIOD WITH SELECTION (in between samples)
 
+# Set file names
+slim_in    <- paste0(simID,"_selection.txt")
+slim_out   <- paste0(simID,"_selection.out")
+slim_log   <- paste0(simID,"_selection.log")
+slim_init  <- paste0(simID,"_initialization.txt")
 
+# Read slim output from DRIFT period
+lines <- readLines(con=slim_out_drift)
+pop_line <- which(lines=="Populations:")
+mut_line <- which(lines=="Mutations:")
+gen_line <- which(lines=="Genomes:")
+num_of_mut <- gen_line-mut_line-1
 
 
 
