@@ -48,10 +48,15 @@ theta <- 50
 # population size
 N <- theta/(4*u*genome_length)
 # selection coeficient
-new_scoef <- 0.6
+sel_coef <- 0.6
+# dominance cofficient
+dominance_coef <- 1
 # length of pure drift period
 drift_period_duration <- 30*N
-
+# Adaptation mode: "standing variation" or "new mutation" ()
+mode <- "standing variation" 
+# number of generations between samples
+selection_period_duration <- 20
 
 #-----------
 # SIMULATION
@@ -83,17 +88,49 @@ system(paste("./slim",slim_in_drift,">",slim_log_drift))
 # 2. SIMULATION OF THE PERIOD WITH SELECTION (in between samples)
 
 # Set file names
-slim_in    <- paste0(simID,"_selection.txt")
-slim_out   <- paste0(simID,"_selection.out")
-slim_log   <- paste0(simID,"_selection.log")
-slim_init  <- paste0(simID,"_initialization.txt")
+slim_in_selection    <- paste0(simID,"_selection.txt")
+slim_out_selection   <- paste0(simID,"_selection.out")
+slim_log_selection   <- paste0(simID,"_selection.log")
+slim_init_selection  <- paste0(simID,"_selection_init.txt")
 
 # Read slim output from DRIFT period
-lines <- readLines(con=slim_out_drift)
-pop_line <- which(lines=="Populations:")
-mut_line <- which(lines=="Mutations:")
-gen_line <- which(lines=="Genomes:")
-num_of_mut <- gen_line-mut_line-1
+out_drift_lines <- readLines(con=slim_out_drift)
+pop_line        <- which(out_drift_lines=="Populations:")
+mut_line        <- which(out_drift_lines=="Mutations:")
+gen_line        <- which(out_drift_lines=="Genomes:")
+num_of_mut      <- gen_line-mut_line-1
 
+if (mode=="new mutation")       cat("Adaptation though new mutation not implemented yet, using standing variation instead")
+if (mode!="standing variation") cat("Adaptation mode undefined, using standing variation") 
+
+# SELECTION ON STANDING VARIATION (changes selection coefficient of on a random locus)
+
+# chose a random locus
+sampled_mut                   <- sample(x=num_of_mut, size=1)
+# change selection coefficient of locus (derived allele being advantageous) # TODO: choose randomly the advanageuous allele
+mutation_table                <- read.table(file=slim_out_drift, skip=mut_line, nrows=num_of_mut)
+levels(mutation_table[,2])    <- c("m1","m2") 
+mutation_table[sampled_mut,2] <- "m2"
+mutation_table[sampled_mut,4] <- sel_coef
+mutation_table[sampled_mut,5] <- dominance_coef
+
+# write initialzation file for slim (state of populaion at starting point of selection period)
+write(out_drift_lines[pop_line:mut_line], slim_init_selection)
+write.table(mutation_table, slim_init_selection, append=T, quote=F, col.names=F)
+write(out_drift_lines[-(1:(gen_line-1))], slim_init_selection, append=T)
+
+# write input file for slim
+writeMutation(file=slim_in_selection, number_of_types=2, h=0.5, DFE="f", s=c(0,sel_coef), append=F, append_mutation=F)
+writeMutationRate(file=slim_in_selection, u=u)  
+writeGenomicElement(file=slim_in_selection, number_of_types=1, mut_type=list("m1","m2"), prop=list(1,0))
+writeChromosome(file=slim_in_selection, element_type="g1", start=1, end=genome_length)
+writeRecombination(file=slim_in_selection, interval_end=genome_length, r=0)
+writeGenerations(file=slim_in_selection, t=selection_period_duration, append=T)
+writeOutput(file=slim_in_selection, type="A", time=selection_period_duration, filename=slim_out_selection)
+writeSeed(file=slim_in_selection, seed=round(runif(1,-2^31,2^31)) )
+write("#INITIALIZATION",file=slim_in_selection,ncolumns=1,append=TRUE)
+write(slim_init_selection,file=slim_in_selection,ncolumns=1,append=TRUE)
+
+system(paste("./slim",slim_in_selection,">",slim_log_selection))
 
 
