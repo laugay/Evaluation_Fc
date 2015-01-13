@@ -130,7 +130,7 @@ out_drift_lines      <- readLines(con=slim_out_drift)
 out_drift_pop_line   <- which(out_drift_lines=="Populations:")
 out_drift_mut_line   <- which(out_drift_lines=="Mutations:")
 out_drift_gen_line   <- which(out_drift_lines=="Genomes:")
-out_drift_num_of_mut <- gen_line-mut_line-1
+out_drift_num_of_mut <- out_drift_gen_line-out_drift_mut_line-1
 
 if (mode=="new mutation")       cat("Adaptation though new mutation not implemented yet, using standing variation instead")
 if (mode!="standing variation") cat("Adaptation mode undefined, using standing variation") 
@@ -139,7 +139,16 @@ if (mode!="standing variation") cat("Adaptation mode undefined, using standing v
 
 # chose a random locus
 sampled_mut                   <- sample(x=out_drift_num_of_mut, size=1)
-# change selection coefficient of locus (derived allele being advantageous) # TODO: choose randomly the advanageuous allele
+# choose advantageous allele between derived and ancestral state 
+advantageus_allele <- sample(c("derived","ancestral"),size=1)
+if (advantageus_allele=="derived"){
+  sel_coef <- sel_coef
+  dominance_coef <- dominance_coef
+}else if (advantageus_allele=="derived"){
+  sel_coef <- -(sel_coef/(1+sel_coef))
+  dominance_coef <- 1 - dominance_coef
+}
+# change selection coefficient of locus
 mutation_table                <- read.table(file=slim_out_drift, skip=out_drift_mut_line, nrows=out_drift_num_of_mut)
 levels(mutation_table[,2])    <- c("m1","m2") 
 mutation_table[sampled_mut,2] <- "m2"
@@ -149,7 +158,7 @@ mutation_table[sampled_mut,5] <- dominance_coef
 # write initialzation file for slim (state of populaion at starting point of selection period)
 write(out_drift_lines[out_drift_pop_line:out_drift_mut_line], slim_init_selection)
 write.table(mutation_table, slim_init_selection, append=T, quote=F, col.names=F)
-write(out_drift_lines[-(1:(gen_line-1))], slim_init_selection, append=T)
+write(out_drift_lines[-(1:(out_drift_gen_line-1))], slim_init_selection, append=T)
 
 # message(paste(Sys.time(),"Episode de SV slim commence, répétition n° ",sim))
 
@@ -158,7 +167,7 @@ writeMutation          (file=slim_in_selection, number_of_types=2, h=0.5, DFE="f
 writeMutationRate      (file=slim_in_selection, u=u)  
 writeGenomicElement    (file=slim_in_selection, number_of_types=1, mut_type=list("m1","m2"), prop=list(1,0))
 writeChromosome        (file=slim_in_selection, element_type="g1", start=1, end=genome_length)
-writeRecombinationChrom(file=slim_file_2, chr_num=chr_num, genome_length=genome_length, r=r, append=T)  
+writeRecombinationChrom(file=slim_in_selection, chr_num=chr_num, genome_length=genome_length, r=r, append=T)  
 writeGenerations       (file=slim_in_selection, t=selection_period_duration, append=T)
 writeOutput            (file=slim_in_selection, type="A", time=selection_period_duration, filename=slim_out_selection)
 writeSeed              (file=slim_in_selection, seed=round(runif(1,-2^31,2^31)) )
@@ -177,9 +186,21 @@ out_selection_gen_line <- which(out_selection_lines=="Genomes:")
 
 log_selection_lines    <- readLines(con=slim_log_selection)
 log_selection_mut_line <- which(log_selection_lines=="Mutations:")
-log_selection_num_mut  <- length(log_selection_lines)-log_selection_mut_line
+if (length(log_selection_mut_line)>0){
+  log_selection_num_mut <- length(log_selection_lines)-log_selection_mut_line
+}else{
+  log_selection_num_mut <- 0
+}
 
-
+if (log_selection_num_mut > 0) {
+  if (length(grep(pattern="m2",x=out_selection_lines[(out_selection_mut_line+1):(out_selection_gen_line-1)]))>0 || length(grep(pattern="m2",x=log_selection_lines[(log_selection_mut_line+1):length(log_selection_lines)]))>0){
+    m2succeed <- TRUE
+  }else{ m2succeed <- FALSE }  
+}else if(log_selection_num_mut==0){
+  if (length(grep(pattern="m2",x=out_selection_lines[(out_selection_mut_line+1):(out_selection_gen_line-1)]))>0){
+    m2succeed <- TRUE
+  }else{ m2succeed <- FALSE }
+}
 
 
 
