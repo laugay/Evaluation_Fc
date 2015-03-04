@@ -1,8 +1,10 @@
-##################################################################################
+###################################################################################
 #
 # Script to test the Fc outlier method modified from Goldringer and Bataillon 2002
+#
+# by A. Becheler, R. Vitalis & M. Navascués
 # 
-##################################################################################
+###################################################################################
 
 # This scripts uses SLiM (Messer 2013) for simulating the data
 # http://messerlab.org/software/
@@ -19,7 +21,7 @@ require(seqinr)
 #---------------
 
 # Set seed for random number generation
-seed4random <- 368898 
+seed4random <- 3633198 
 set.seed(seed4random)
 
 # set working directory
@@ -102,6 +104,8 @@ writeDemography        (file=slim_in_drift, type="S", time=1, pop="p1", sigma=si
 writeOutput            (file=slim_in_drift, type="A", time=drift_period_duration, filename=slim_out_drift)
 writeSeed              (file=slim_in_drift, seed=round(runif(1,-2^31,2^31)) )
 
+message(paste(Sys.time(),"SIMULATION OF A PURE DRIFT PERIOD STARTS. Simulation:",simID))
+
 # Run SLiM
 system(paste("./slim",slim_in_drift,">",slim_log_drift))
 # NB: SLiM executable must be in the same folder as SLiM input file (this is a requirement from SLiM)
@@ -176,9 +180,9 @@ writeSeed              (file=slim_in_selection, seed=round(runif(1,-2^31,2^31)) 
 write("#INITIALIZATION",file=slim_in_selection,ncolumns=1,append=TRUE)
 write(slim_init_selection,file=slim_in_selection,ncolumns=1,append=TRUE)
 
+message(paste(Sys.time(),"SIMULATION OF THE PERIOD WITH SELECTION STARTS. Simulation:",simID))
 system(paste("./slim",slim_in_selection,">",slim_log_selection))
-
-# message(paste(Sys.time(),"Episode de SV slim terminé, répétition n° ",sim))
+message(paste(Sys.time(),"END OF SIMULATION OF THE PERIOD WITH SELECTION. Simulation:",simID))
 
 # Read slim output and log from SELECTION period
 out_selection_lines    <- readLines(con=slim_out_selection)
@@ -204,6 +208,112 @@ if (log_selection_num_mut > 0) {
 }
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+######################### CONTINUE OR NOT THE ANALISIS OF THE SIMULATION #######################################
+
+if(! m2succeed){
+  # STOP ANALYSIS
+  sim <- sim
+  message(paste(Sys.time(),"m2 était absente de la simul slim, répétition n° ",sim))
+  
+}else if(m2succeed){
+  message(paste(Sys.time(),"m2 était présente dans la simul slim, répétition n° ",sim))
+  
+  # TRY SAMPLINGS TO BEST EXPLOIT THE SIMULATION
+  samp_try <- 1
+  m2_MAF <- FALSE
+  
+  while(samp_try < 5){
+    print(paste("sample try n°",samp_try))
+    # individuals are sampled and SNP_list is made
+    SNP_list <- Make.SNP.list_RV(file_in_1=slim_init, file_in_2=slim_out_2,file_fixed=slim_log_2,populations=2,sample_size=50,samp_ind_name=sampled_ind_name)
+    message(paste(Sys.time(),"On vient d'achever la fonction Make.SNP, répétition n° ",sim))     
+    if (length(which(SNP_list[,"type"] == "m2")) == 0) {
+      message(paste(Sys.time(),"m2 absente..., essai ",samp_try, "répétition n° ",sim))        
+      m2_MAF <- FALSE
+      samp_try <- samp_try +1
+    } else {
+      m2_MAF <- m2.gbmaf(SNP_list)      
+      if (m2_MAF == FALSE){
+        # RE-TRY SAMPLINGS
+        samp_try <- samp_try +1
+        message(paste(Sys.time(),"Retente un échantillonnage, essai ",samp_try, "répétition n° ",sim))        
+      } else if(m2_MAF == TRUE) {
+        # STOP SAMPLINGS
+        samp_try <- 5
+        print("m2 sampled ! ")
+        message(paste(Sys.time(),"On a réussi à échantillonner m2, répétition n° ",sim))
+      }
+    }
+  } # end of while(samp_try < 5)
+  
+  if(m2_MAF==FALSE){
+    print("m2 did not fil MAF recquirements")
+    message(paste(Sys.time(),"m2 ne remplissait pas la MAF -> autre simul slim, répétition n° ",sim))
+    
+    # STOP ANALYSIS
+    sim <- sim
+  }else if(m2_MAF==TRUE){
+    print("m2 has been sampled AND fills MAF recquirements")
+    message(paste(Sys.time(),"m2 remplissait la MAF, on va échantillonner les SNP, répétition n° ",sim))
+    
+    # ensure that m2 will be in the analisis... and sample 999 other loci
+    
+    m2 <- which(SNP_list[,"type"]=="m2")
+    SNP_list_m2 <- SNP_list[m2,]
+    SNP_list_without_m2 <- SNP_list[-m2,]
+    
+    nx <- SNP_list_without_m2[,"derived.x"] + SNP_list_without_m2[,"ancestral.x"]
+    px <- SNP_list_without_m2[,"derived.x"] / nx
+    ny <- SNP_list_without_m2[,"derived.y"] + SNP_list_without_m2[,"ancestral.y"]
+    py <- SNP_list_without_m2[,"derived.y"] / ny
+    maf <- ((px + py) / 2 >= 0.01 & (px + py) / 2 <= 0.99)
+    #		sample <- sample(nrow(SNP_list_without_m2[maf,]),size = 999)
+    sample <- sample(which(maf),size = 999)
+    SNP_list_m1 <- SNP_list_without_m2[sample,]
+    SNP_list_m1_m2 <- rbind(SNP_list_m2,SNP_list_m1)
+    SNP_final_list <- SNP_list_m1_m2[order(SNP_list_m1_m2 $x,decreasing=FALSE),]
+    
+    #save informations
+    save(SNP_final_list,file=mutable_name)
+    SNP_final_list <- SNP_final_list[,c("derived.x","ancestral.x","derived.y","ancestral.y")]
+    
+    # write selestim_file
+    if (nrow(SNP_final_list)>0 ) {
+      con <- file(selestim_in, open = "w")
+      vect <- c(as.character(2),as.character(nrow(SNP_final_list)))
+      writeLines(vect, con = con)
+      write.table(x=SNP_final_list,file=con,row.names=FALSE,col.names=FALSE)
+      close(con)
+    }else{print("Your SNP list is empty : no polymorphism detected ")}
+    
+    message(paste(Sys.time(),"Fichier selestim écrit, Analyse Fstat commence, répétition n° ",sim))
+    
+    # END ANALYSIS
+    # analyse with Fstatistics
+    Fstat <- FstatFun_RV(data_file=selestim_in,dT=dT,nbsimul=simF)
+    
+    save(Fstat,file=Fstat_name)
+    message(paste(Sys.time(),"Analyse Fstat terminée, simulation terminée, répétition n° ",sim))
+    sim<- sim + 1
+  } # end of else if(m2_MAF==TRUE)
+} # end of else if(m2succeed){
 
 
 
