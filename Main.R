@@ -149,7 +149,7 @@ advantageus_allele <- sample(c("derived","ancestral"),size=1)
 if (advantageus_allele=="derived"){
   sel_coef <- sel_coef
   dominance_coef <- dominance_coef
-}else if (advantageus_allele=="derived"){
+}else if (advantageus_allele=="ancestral"){
   sel_coef <- -(sel_coef/(1+sel_coef))
   dominance_coef <- 1 - dominance_coef
 }
@@ -162,15 +162,15 @@ mutation_table[sampled_mut,5] <- dominance_coef
 
 # write initialzation file for slim (state of population at starting point of selection period)
 write(out_drift_lines[out_drift_pop_line:out_drift_mut_line], slim_init_selection)
-write.table(mutation_table, slim_init_selection, append=T, quote=F, col.names=F)
+write.table(mutation_table, slim_init_selection, append=T, quote=F, col.names=F, row.names=F)
 write(out_drift_lines[-(1:(out_drift_gen_line-1))], slim_init_selection, append=T)
 
 # message(paste(Sys.time(),"Episode de SV slim commence, répétition n° ",sim))
 
 # write input file for slim
-writeMutation          (file=slim_in_selection, number_of_types=2, h=0.5, DFE="f", s=c(0,sel_coef), append=F, append_mutation=F)
+writeMutation          (file=slim_in_selection, number_of_types=2, h=c(0.5,dominance_coef), DFE="f", s=c(0,sel_coef), append=F, append_mutation=F)
 writeMutationRate      (file=slim_in_selection, u=u)  
-writeGenomicElement    (file=slim_in_selection, number_of_types=1, mut_type=list("m1","m2"), prop=list(1,0))
+writeGenomicElement    (file=slim_in_selection, number_of_types=1, mut_type=list(c("m1","m2")), prop=list(c(1,0)))
 writeChromosome        (file=slim_in_selection, element_type="g1", start=1, end=genome_length)
 writeRecombinationChrom(file=slim_in_selection, chr_num=chr_num, genome_length=genome_length, r=r, append=T)  
 writeGenerations       (file=slim_in_selection, t=selection_period_duration, append=T)
@@ -242,7 +242,10 @@ if(! m2succeed){
   while(samp_try < 5){
     print(paste("sample try n°",samp_try))
     # individuals are sampled and SNP_list is made
-    SNP_list <- Make.SNP.list_RV(file_in_1=slim_init, file_in_2=slim_out_2,file_fixed=slim_log_2,populations=2,sample_size=50,samp_ind_name=sampled_ind_name)
+    SNP_list <- Make.SNP.list(file_in_1=slim_init_selection,
+                                 file_in_2=slim_out_selection,
+                                 file_fixed=slim_log_selection,
+                                 populations=2, sample_size=50, samp_ind_name=sampled_ind_name)
     message(paste(Sys.time(),"On vient d'achever la fonction Make.SNP, répétition n° ",sim))     
     if (length(which(SNP_list[,"type"] == "m2")) == 0) {
       message(paste(Sys.time(),"m2 absente..., essai ",samp_try, "répétition n° ",sim))        
