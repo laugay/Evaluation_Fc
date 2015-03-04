@@ -26,7 +26,7 @@ set.seed(seed4random)
 working_directory <- "/home/miguel/Work/Research/2012.SelfAdapt/Evaluation_Fc"
 setwd(working_directory)
 
-# high penality for scientific notation (necessary to input large number in SLiM)
+# high penality for scientific notation (necessary to input large numbers in SLiM)
 options("scipen"=999)
 
 # tools to write/read SLiM input/output
@@ -58,14 +58,14 @@ theta <- 50
 sel_coef <- 0.6
 # dominance cofficient
 dominance_coef <- 1
-# length of pure drift period
+# length of pure drift period (number of times the population size)
 number_of_times       <- 30 # see below
 # Adaptation mode: "standing variation" or "new mutation" ()
 mode <- "standing variation" 
 # number of generations between samples
 selection_period_duration <- 20
 
-# gets parameter and setting values from command line
+# gets parameter and setting values from command line (using package 'batch')
 # example:
 #   R --vanilla --args seed4random 104415 dominance_coef 0.5 < Main.R > Main.out
 parseCommandArgs()
@@ -90,7 +90,7 @@ slim_in_drift  <- paste0(simID,"_drift.txt")
 slim_out_drift <- paste0(simID,"_drift.out")
 slim_log_drift <- paste0(simID,"_drift.log")
 
-# Write slim input file
+# Write slim input file (functions from slim_tools_2.R)
 writeMutation          (file=slim_in_drift, number_of_types=1, h=0.5, DFE="f", s=0)
 writeMutationRate      (file=slim_in_drift, u=u)  
 writeGenomicElement    (file=slim_in_drift, number_of_types=1, mut_type=list("m1"), prop=list(1))
@@ -102,11 +102,11 @@ writeDemography        (file=slim_in_drift, type="S", time=1, pop="p1", sigma=si
 writeOutput            (file=slim_in_drift, type="A", time=drift_period_duration, filename=slim_out_drift)
 writeSeed              (file=slim_in_drift, seed=round(runif(1,-2^31,2^31)) )
 
-# Run slim
+# Run SLiM
 system(paste("./slim",slim_in_drift,">",slim_log_drift))
-# NB: slim executable must be in the same folder as slim input file
+# NB: SLiM executable must be in the same folder as SLiM input file (this is a requirement from SLiM)
 
-# message(paste(Sys.time(),"Episode de dérive slim terminé, répétition n° ",sim))
+message(paste(Sys.time(),"END OF SIMULATION OF A PURE DRIFT PERIOD. Simulation:",simID))
 
 
 # 2. SIMULATION OF THE PERIOD WITH SELECTION (in between samples)
@@ -134,6 +134,7 @@ out_drift_num_of_mut <- out_drift_gen_line-out_drift_mut_line-1
 
 if (mode=="new mutation")       cat("Adaptation though new mutation not implemented yet, using standing variation instead")
 if (mode!="standing variation") cat("Adaptation mode undefined, using standing variation") 
+mode <- "standing variation" # TO DO: implement new mutation scenario
 
 # SELECTION ON STANDING VARIATION (changes selection coefficient of on a random locus)
 
@@ -155,7 +156,7 @@ mutation_table[sampled_mut,2] <- "m2"
 mutation_table[sampled_mut,4] <- sel_coef
 mutation_table[sampled_mut,5] <- dominance_coef
 
-# write initialzation file for slim (state of populaion at starting point of selection period)
+# write initialzation file for slim (state of population at starting point of selection period)
 write(out_drift_lines[out_drift_pop_line:out_drift_mut_line], slim_init_selection)
 write.table(mutation_table, slim_init_selection, append=T, quote=F, col.names=F)
 write(out_drift_lines[-(1:(out_drift_gen_line-1))], slim_init_selection, append=T)
