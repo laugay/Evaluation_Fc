@@ -21,7 +21,7 @@ require(seqinr)
 #---------------
 
 # Set seed for random number generation
-seed4random <- 3633198 
+seed4random <- 3698 
 set.seed(seed4random)
 
 # set working directory
@@ -53,7 +53,7 @@ r <- 2e-6
 # genome size
 genome_length <- 25000
 # number of chromosomes
-chr_num <- 8
+chr_num <- 10
 # theta= 4Neu (for the genome)
 theta <- 50
 # selection coeficient
@@ -66,6 +66,8 @@ number_of_times       <- 30 # see below
 mode <- "standing variation" 
 # number of generations between samples
 selection_period_duration <- 20
+# sample size
+sample_size <- 50
 
 # gets parameter and setting values from command line (using package 'batch')
 # example:
@@ -74,6 +76,7 @@ parseCommandArgs()
 
 # population size
 N <- theta/(4*u*genome_length)
+if (N<sample_size) message(paste(Sys.time(),"/!\\ Sample size larger than population size in simulation",simID))
 # length of pure drift period
 drift_period_duration <- number_of_times*N
 # Simulation scenario ID for file identification
@@ -145,13 +148,15 @@ mode <- "standing variation" # TO DO: implement new mutation scenario
 # chose a random locus
 sampled_mut                   <- sample(x=out_drift_num_of_mut, size=1)
 # choose advantageous allele between derived and ancestral state 
-advantageus_allele <- sample(c("derived","ancestral"),size=1)
-if (advantageus_allele=="derived"){
+advantageous_allele <- sample(c("derived","ancestral"),size=1)
+if (advantageous_allele=="derived"){
   sel_coef <- sel_coef
   dominance_coef <- dominance_coef
-}else if (advantageus_allele=="ancestral"){
+  message(paste(Sys.time(),"Derived allele is advantageous in simulation",simID))
+}else if (advantageous_allele=="ancestral"){
   sel_coef <- -(sel_coef/(1+sel_coef))
   dominance_coef <- 1 - dominance_coef
+  message(paste(Sys.time(),"Ancestral allele is advantageous in simulation",simID))
 }
 # change selection coefficient of locus
 mutation_table                <- read.table(file=slim_out_drift, skip=out_drift_mut_line, nrows=out_drift_num_of_mut)
@@ -197,19 +202,40 @@ if (length(log_selection_mut_line)>0){
   log_selection_num_mut <- 0
 }
 
-if (log_selection_num_mut > 0) {
-  if (length(grep(pattern="m2",x=out_selection_lines[(out_selection_mut_line+1):(out_selection_gen_line-1)]))>0 || length(grep(pattern="m2",x=log_selection_lines[(log_selection_mut_line+1):length(log_selection_lines)]))>0){
-    m2succeed <- TRUE
-  }else{ m2succeed <- FALSE }  
-}else if(log_selection_num_mut==0){
-  if (length(grep(pattern="m2",x=out_selection_lines[(out_selection_mut_line+1):(out_selection_gen_line-1)]))>0){
-    m2succeed <- TRUE
-  }else{ m2succeed <- FALSE }
+# VERIFYING THE SUCCESS OF SELECTION (was the advantageous allele lost by drift?)
+
+if (advantageous_allele=="derived"){
+  if (log_selection_num_mut > 0) {
+    if (length(grep(pattern="m2",x=out_selection_lines[(out_selection_mut_line+1):(out_selection_gen_line-1)]))>0 || length(grep(pattern="m2",x=log_selection_lines[(log_selection_mut_line+1):length(log_selection_lines)]))>0){
+      advantageous_allele_not_lost <- TRUE
+    }else{ advantageous_allele_not_lost <- FALSE }  
+  }else if(log_selection_num_mut==0){
+    if (length(grep(pattern="m2",x=out_selection_lines[(out_selection_mut_line+1):(out_selection_gen_line-1)]))>0){
+      advantageous_allele_not_lost <- TRUE
+    }else{ advantageous_allele_not_lost <- FALSE }
+  }
+}else if (advantageous_allele=="ancestral"){
+  if (log_selection_num_mut > 0) {
+    if (length(grep(pattern="m2",x=log_selection_lines[(log_selection_mut_line+1):length(log_selection_lines)]))>0){
+      advantageous_allele_not_lost <- FALSE
+    }else{ advantageous_allele_not_lost <- TRUE }  
+  }else if(log_selection_num_mut==0){
+    advantageous_allele_not_lost <- TRUE
+  }
 }
 
+if (advantageous_allele_not_lost) {
+  message(paste(Sys.time(),"Advantageous allele was NOT lost in simulation",simID))
+}else{
+  message(paste(Sys.time(),"Advantageous allele was lost in simulation",simID))  
+}
 
+# Make a list of plymorphic sites
 
-
+SNP_list <- Make.SNP.list(file_in_1=slim_init_selection,
+                          file_in_2=slim_out_selection,
+                          file_fixed=slim_log_selection,
+                          populations=2, sample_size=sample_size, samp_ind_name=sampled_ind_name)
 
 
 

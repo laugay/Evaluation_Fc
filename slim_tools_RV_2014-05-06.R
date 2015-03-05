@@ -1,4 +1,4 @@
-Make.SNP.list_RV <- function (file_in_1,file_in_2,file_fixed,populations,sample_size,samp_ind_name) {
+Make.SNP.list <- function (file_in_1,file_in_2,file_fixed,populations,sample_size,samp_ind_name) {
 	for (pop in 1:populations) {
     	con <- paste("file_in_",pop,sep="")
     	lines <- readLines(con=get(con))
@@ -60,9 +60,9 @@ Make.SNP.list_RV <- function (file_in_1,file_in_2,file_fixed,populations,sample_
 		} else {
    	 		fmut_table <- matrix(NA,nrow = 0,length(c("type","x", "s", "h","n_pop","derived","ancestral")))
     		colnames(fmut_table) <- c("type","x", "s", "h","n_pop","derived","ancestral")
-    	}
-    }
-    save(sampled_ind_1,sampled_ind_2,mut_table_1,mut_table_2,fmut_table,file = samp_ind_name)
+  	}
+  }
+  save(sampled_ind_1,sampled_ind_2,mut_table_1,mut_table_2,fmut_table,file = samp_ind_name)
 
   ############# MERGE AND SORT TABLES ###################################################
   
@@ -77,11 +77,13 @@ Make.SNP.list_RV <- function (file_in_1,file_in_2,file_fixed,populations,sample_
   SelEstim_1 <- mut_table_1[order(mut_table_1$x,decreasing=FALSE),]
   m2_1 <- SelEstim_1[which(SelEstim_1[,"type"]=="m2"),]
   SelEstim_1 <- SelEstim_1[-which(SelEstim_1[,"type"]=="m2"),]
-  if(length(which(SelEstim_2[,"type"]=="m2")>0)){
+  if(length(which(SelEstim_2[,"type"]=="m2"))>0){
     m2_2 <- SelEstim_2[which(SelEstim_2[,"type"]=="m2"),]
     SelEstim_2 <- SelEstim_2[-which(SelEstim_2[,"type"]=="m2"),]
+  }else{
+    m2_2 <- cbind(m2_1[,c("type","x","s","h")],"n_pop.y"=NA,"derived.y"=0,"ancestral.y"=100)
   }
-  m2_all <- merge(m2_1, m2_2, by=c("x","type","s","h"), all = TRUE)
+  m2_all <- merge(m2_1, m2_2, by=c("type","x","s","h"), all = TRUE)
   
   #merge Selestim_1 and Selestim_2 and save it
   #SNP_list <-merge(SelEstim_1, SelEstim_2, by=c("x","type","s","h"), all = TRUE)
@@ -119,7 +121,7 @@ Make.SNP.list_RV <- function (file_in_1,file_in_2,file_fixed,populations,sample_
   return(SNP_list)
 }
 
-Drift.simulation.FC_RV <- function(locus,new_list,freq,nbsimul,dT,S1,S2) {
+Drift.simulation.FC <- function(locus,new_list,freq,nbsimul,dT,S1,S2) {
  	Ne <- as.integer(new_list$Fmat[locus,"Ne_FC_multi"])
  	if (is.finite(Ne) && (!is.na(Ne)) && (Ne > 0)) {
 		dist <- which((freq[locus,1] == new_list$sim_FC[,1]) & (Ne == new_list$sim_FC[,2]))
@@ -165,7 +167,7 @@ Drift.simulation.FC_RV <- function(locus,new_list,freq,nbsimul,dT,S1,S2) {
   	return(new_list)
 }
 
-Drift.simulation.FST_RV <- function(locus,new_list,freq,nbsimul,dT,S1,S2){
+Drift.simulation.FST <- function(locus,new_list,freq,nbsimul,dT,S1,S2){
 	Ne <- as.integer(new_list$Fmat[locus,"Ne_FST_multi"])
 	if (is.finite(Ne) && (!is.na(Ne)) && (Ne > 0)) {
 
