@@ -1160,7 +1160,58 @@ Drift.simulation.FST <- function(locus,new_list,freq,nbsimul,dT,S1,S2){
   return(new_list)
 }
 
-FstatFun_RV <- function (data_4_Ne,dT,nbsimul) {
+FstatFun_selestim <- function (data_file,dT,nbsimul) {
+  remove <- seq(nrow(read.table(data_file, skip=2)))
+  S1 <- sum(scan(file=data_file,skip=2,nlines=1)[1:2])/2
+  S2 <- sum(scan(file=data_file,skip=2,nlines=1)[3:4])/2
+  data_freq <- cbind(read.table(file=data_file,skip=2)[,1]/(2*S1),read.table(file=data_file,skip=2)[,3]/(2*S2))
+  
+  npop <- scan(file=data_file,nlines=1)
+  if (npop!=2) print("Error, number of populations must be 2")
+  Fmat <- matrix(NA,nrow(data_freq),18)
+  colnames(Fmat)<-c("FC_num","FC_denom","FC_sum_num","FC_sum_denom","FC_obs","FC_multi","Ne_FC_multi","FC_p_value","FC_q_value",
+                    "FST_num","FST_denom","FST_sum_num","FST_sum_denom","FST_obs","FST_multi","Ne_FST_multi","FST_p_value","FST_q_value")
+  
+  Fmat[,"FC_num"] <- Compute.locus.F_c.num(data_file)
+  Fmat[,"FC_denom"] <- Compute.locus.F_c.denom(data_file)
+  
+  Fmat[,"FST_num"] <- Compute.numerator.F_ST(data_file)
+  Fmat[,"FST_denom"] <- Compute.denominator.F_ST(data_file)
+  
+  Fmat[,"FC_sum_num"] <- sum(Fmat[,"FC_num"])
+  Fmat[,"FC_sum_denom"] <- sum(Fmat[,"FC_denom"])
+  
+  Fmat[,"FST_sum_num"] <- sum(Fmat[,"FST_num"])
+  Fmat[,"FST_sum_denom"] <- sum(Fmat[,"FST_denom"])
+  
+  Fmat[,"FC_obs"]<- Fmat[,"FC_num"]/Fmat[,"FC_denom"]
+  Fmat[,"FST_obs"]<- Fmat[,"FST_num"]/Fmat[,"FST_denom"]
+  
+  Fmat[,"FC_multi"] <- (Fmat[,"FC_sum_num"]-Fmat[,"FC_num"])/(Fmat[,"FC_sum_denom"]-Fmat[,"FC_denom"])
+  Fmat[,"FST_multi"] <- (Fmat[,"FST_sum_num"]-Fmat[,"FST_num"])/(Fmat[,"FST_sum_denom"]-Fmat[,"FST_denom"])
+  
+  
+  
+  ##  !!!! 
+  Fmat[,"Ne_FC_multi"] <- mapply(Compute.F_c.N_e, Fmat[,"FC_multi"], dT,S1,S2)
+  Fmat[,"Ne_FST_multi"] <-  mapply(Compute.F_ST.N_e,Fmat[,"FST_multi"], dT)
+  ### !!!! 
+  
+  max_row_FC <- nrow(unique(cbind(data_freq[,1],as.integer(Fmat[,"Ne_FC_multi"]))))
+  max_row_FST <- nrow(unique(cbind(data_freq[,1],as.integer(Fmat[,"Ne_FST_multi"]))))
+  new_list <- list(n_FC = 0,n_FST = 0,Fmat = Fmat,sim_FC = matrix(-9,nrow = max_row_FC,ncol = (nbsimul + 2)),sim_FST = matrix(-9,nrow = max_row_FST,ncol = (nbsimul + 2)))
+  for (i in remove) {
+    new_list <- Drift.simulation.FC_RV(locus = i,new_list=new_list,freq=data_freq,nbsimul=nbsimul,dT=dT,S1=S1,S2=S2)
+    new_list <- Drift.simulation.FST_RV(locus = i,new_list=new_list,freq=data_freq,nbsimul=nbsimul,dT=dT,S1=S1,S2=S2)
+  }
+  
+  #   Fmat[,"FC_q_value"] <- qvalue(Fmat[,"FC_p_value"])$qvalues
+  #   Fmat[,"FST_q_value"] <- qvalue(Fmat[,"FST_p_value"])$qvalues
+  return(new_list$Fmat)
+}
+
+
+FstatFun_dataframe <- function (data_4_Ne,dT,nbsimul) {
   remove <- seq(nrow(read.table(data_4_Ne, skip=2)))
   S1 <- sum(scan(file=data_4_Ne,skip=2,nlines=1)[1:2])/2
   S2 <- sum(scan(file=data_4_Ne,skip=2,nlines=1)[3:4])/2
@@ -1209,8 +1260,6 @@ FstatFun_RV <- function (data_4_Ne,dT,nbsimul) {
   #   Fmat[,"FST_q_value"] <- qvalue(Fmat[,"FST_p_value"])$qvalues
   return(new_list$Fmat)
 }
-
-
 
 
 

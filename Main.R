@@ -11,9 +11,9 @@
 
 # This script uses the following packages:
 require(batch)
-require(adegenet)
-require(pegas)
-require(seqinr)
+#require(adegenet)
+#require(pegas)
+#require(seqinr)
 
 
 #---------------
@@ -22,18 +22,16 @@ require(seqinr)
 
 # Set seed for random number generation
 seed4random <- 3698 
-set.seed(seed4random)
 
 # set working directory
 working_directory <- "/home/miguel/Work/Research/2012.SelfAdapt/Evaluation_Fc"
-setwd(working_directory)
+
 
 # high penality for scientific notation (necessary to input large numbers in SLiM)
 options("scipen"=999)
 
 # tools to write/read SLiM input/output
-source("slim_tools_2.R")
-source("slim_tools_RV_2014-05-06.R")
+source("slim_tools.R")
 
 # Simulation ID for file identification
 simID <- "test"
@@ -44,30 +42,30 @@ simID <- "test"
 #----------------------------
 
 # selfing rate
-sigma <- 0.9 
+sigma <- 0.5 
 # mutation rate per bp
-u <- 2e-6
+u <- 1e-10
 # recombination rate per bp
-r <- 2e-6
+r <- 1e-8
 # genome size
-genome_length <- 25000
+genome_length <- 2000000000
 # number of chromosomes
 chr_num <- 10
-# theta= 4Neu (for the genome)
-theta <- 50
+# effective population size (Ne)
+N <- 500
 # selection coeficient
-sel_coef <- 0.9
+sel_coef <- 0.5
 # dominance cofficient
 dominance_coef <- 1
 # length of pure drift period (number of times the population size)
-number_of_times       <- 30 # see below
+number_of_times       <- 10 # see below
 # Adaptation mode: "standing variation" or "new mutation" ()
 mode <- "new mutation" #"standing variation" 
 # number of generations between samples
 selection_period_duration <- 20
 # sample size
-sample_size      <- 50
-sample_size_loci <- 100
+sample_size      <- 50      # number iof individuals sampled
+sample_size_loci <- 1000    # number of loci sampled for demographic inference)
 #threshold for mimimum allele frequency
 MAF_threshold <- 0.01
 
@@ -76,13 +74,16 @@ MAF_threshold <- 0.01
 #   R --vanilla --args seed4random 104415 dominance_coef 0.5 < Main.R > Main.out
 parseCommandArgs()
 
-# population size
-N <- theta/(4*u*genome_length)
-if (N<sample_size) cat(paste(Sys.time(),"/!\\ Sample size larger than population size in simulation",simID))
+# Final setup lines
+set.seed(seed4random)
+setwd(working_directory)
+#theta= 4Neu (for the genome)
+theta <- N*4*u*genome_length
 # length of pure drift period
 drift_period_duration <- number_of_times*N
 # Simulation scenario ID for file identification
 simID <- paste0("scenario_",simID)
+if (N<sample_size) cat(paste(Sys.time(),"/!\\ Sample size larger than population size in simulation",simID,"\n"))
 
 
 if (mode=="new mutation"){
@@ -97,11 +98,11 @@ if (mode=="new mutation"){
   if (advantageous_allele=="derived"){
     sel_coef <- sel_coef
     dominance_coef <- dominance_coef
-    cat(paste(Sys.time(),"Derived allele is advantageous in simulation",simID))
+    cat(paste(Sys.time(),"Derived allele is advantageous in simulation",simID,"\n"))
   }else if (advantageous_allele=="ancestral"){
     sel_coef <- -(sel_coef/(1+sel_coef))
     dominance_coef <- 1 - dominance_coef
-    cat(paste(Sys.time(),"Ancestral allele is advantageous in simulation",simID))
+    cat(paste(Sys.time(),"Ancestral allele is advantageous in simulation",simID,"\n"))
   }
 }
 
@@ -135,13 +136,13 @@ if (mode=="new mutation"){
         file=slim_in_drift,ncolumns=6,append=TRUE)
 }
 
-cat(paste(Sys.time(),"SIMULATION OF A PURE DRIFT PERIOD STARTS. Simulation:",simID))
+cat(paste(Sys.time(),"SIMULATION OF A PURE DRIFT PERIOD STARTS. Simulation:",simID,"\n"))
 
 # Run SLiM
 system(paste("./slim",slim_in_drift,">",slim_log_drift))
 # NB: SLiM executable must be in the same folder as SLiM input file (this is a requirement from SLiM)
 
-cat(paste(Sys.time(),"END OF SIMULATION OF A PURE DRIFT PERIOD. Simulation:",simID))
+cat(paste(Sys.time(),"END OF SIMULATION OF A PURE DRIFT PERIOD. Simulation:",simID,"\n"))
 
 
 # 2. SIMULATION OF THE PERIOD WITH SELECTION (in between samples)
@@ -207,9 +208,9 @@ writeSeed              (file=slim_in_selection, seed=round(runif(1,-2^31,2^31)) 
 write("#INITIALIZATION",file=slim_in_selection,ncolumns=1,append=TRUE)
 write(slim_init_selection,file=slim_in_selection,ncolumns=1,append=TRUE)
 
-cat(paste(Sys.time(),"SIMULATION OF THE PERIOD WITH SELECTION STARTS. Simulation:",simID))
+cat(paste(Sys.time(),"SIMULATION OF THE PERIOD WITH SELECTION STARTS. Simulation:",simID,"\n"))
 system(paste("./slim",slim_in_selection,">",slim_log_selection))
-cat(paste(Sys.time(),"END OF SIMULATION OF THE PERIOD WITH SELECTION. Simulation:",simID))
+cat(paste(Sys.time(),"END OF SIMULATION OF THE PERIOD WITH SELECTION. Simulation:",simID,"\n"))
 
 # Read slim output and log from SELECTION period
 out_selection_lines    <- readLines(con=slim_out_selection)
@@ -247,73 +248,82 @@ if (advantageous_allele=="derived"){
 }
 
 if (advantageous_allele_not_lost) {
-  cat(paste(Sys.time(),"Advantageous allele was NOT lost in simulation",simID))
-}else{
-  cat(paste(Sys.time(),"Advantageous allele was lost in simulation",simID))  
-}
+  cat(paste(Sys.time(),"Advantageous allele was NOT lost in simulation",simID,"\n"))
+  
+  # Make a list of ALL polymorphic sites
+  
+  SNP_list <- Make.SNP.list(file_in_1=slim_init_selection,
+                            file_in_2=slim_out_selection,
+                            file_fixed=slim_log_selection,
+                            populations=2, sample_size=sample_size, samp_ind_name=sampled_ind_name)
+  cat(paste(Sys.time(),"List of all polymorphic SNP completed for simulation",simID,"\n"))     
+  
+  if (nrow(SNP_list)>=sample_size_loci){
 
-# Make a list of ALL polymorphic sites
-
-SNP_list <- Make.SNP.list(file_in_1=slim_init_selection,
-                          file_in_2=slim_out_selection,
-                          file_fixed=slim_log_selection,
-                          populations=2, sample_size=sample_size, samp_ind_name=sampled_ind_name)
-cat(paste(Sys.time(),"List of all polymorphic SNP completed for simulation",simID))     
-
-if (length(which(SNP_list[,"type"] == "m2")) == 0) {
-  cat(paste(Sys.time(),"SNP under selection is absente from sample for simulation",simID))
-}else{
-  cat(paste(Sys.time(),"SNP under selection is present in sample for simulation",simID))
-  m2_MAF <- m2.gbmaf(SNP_list)      
-  if (m2_MAF){
-    cat(paste(Sys.time(),"SNP under selection fulfils MAF criterion in sample for simulation",simID))
+    cat(paste(Sys.time(),"The number of polymorphic loci in the sample (",dim(SNP_list)[1],") allows to sample",
+              sample_size_loci," loci for demographic inference in simulation",simID,"\n"))  
+    
+    if (length(which(SNP_list[,"type"] == "m2")) == 0) {
+      cat(paste(Sys.time(),"SNP under selection is absente from sample for simulation",simID,"\n"))
+    }else{
+      cat(paste(Sys.time(),"SNP under selection is present in sample for simulation",simID,"\n"))
+      m2_MAF <- m2.gbmaf(SNP_list)      
+      if (m2_MAF){
+        cat(paste(Sys.time(),"SNP under selection fulfils MAF criterion in sample for simulation",simID,"\n"))
+      }
+    }
+    
+    # sample SNP that fulfil MAF criterion
+    nx <- SNP_list[,"derived.x"] + SNP_list[,"ancestral.x"]
+    px <- SNP_list[,"derived.x"] / nx
+    ny <- SNP_list[,"derived.y"] + SNP_list[,"ancestral.y"]
+    py <- SNP_list[,"derived.y"] / ny
+    maf <- ( ((px + py) / 2 >= MAF_threshold) & ((px + py) / 2 <= 1-MAF_threshold) )
+    SNP_list_MAF     <- SNP_list[maf,]
+    SNP_list_sampled <- SNP_list[sample(dim(SNP_list)[1],sample_size_loci),]
+    SNP_list_sampled <- SNP_list_sampled[order(SNP_list_sampled$x,decreasing=FALSE),]
+    
+    cat(paste(Sys.time(),nrow(SNP_list)-nrow(SNP_list_MAF),"of",nrow(SNP_list),"loci do not fulfil MAF criterion in sample for simulation",simID,"\n"))
+    
+    save(SNP_list,SNP_list_sampled,SNP_list_MAF,file=mutable_name)
+    
+    #SNP_list_sampled <- SNP_list_sampled[,c("derived.x","ancestral.x","derived.y","ancestral.y")]
+    #SNP_list_MAF     <- SNP_list_MAF[,c("derived.x","ancestral.x","derived.y","ancestral.y")]
+    
+    
+    
+    
+    # write selestim_file
+    if (nrow(SNP_list_sampled)>0 ) {
+      con <- file(selestim_sample, open = "w")
+      vect <- c(as.character(2),as.character(nrow(SNP_list_sampled)))
+      writeLines(vect, con = con)
+      write.table(x=SNP_list_sampled,file=con,row.names=FALSE,col.names=FALSE)
+      close(con)
+    }else{print("Your sample-SNP list is empty")}
+    
+    if (nrow(SNP_list_MAF)>0 ) {
+      con <- file(selestim_MAF, open = "w")
+      vect <- c(as.character(2),as.character(nrow(SNP_list_MAF)))
+      writeLines(vect, con = con)
+      write.table(x=SNP_list_MAF,file=con,row.names=FALSE,col.names=FALSE)
+      close(con)
+    }else{print("Your MAF-SNP list is empty")}
+    
+    
+    # END ANALYSIS
+    # analyse with Fstatistics
+    Fstat <- FstatFun_selestim(data_4_Ne=selestim_sample,data_4_test=,dT=dT,nbsimul=simF)
+    
+    save(Fstat,file=Fstat_name)
+    
+  }else{
+    cat(paste(Sys.time(),"Less than",sample_size_loci,"polymorphic loci (",dim(SNP_list)[1],") in sample for simulation",simID,"\n"))  
   }
+  
+}else{
+  cat(paste(Sys.time(),"Advantageous allele was lost in simulation",simID,"\n"))  
 }
-
-# sample SNP that fulfil MAF criterion
-nx <- SNP_list[,"derived.x"] + SNP_list[,"ancestral.x"]
-px <- SNP_list[,"derived.x"] / nx
-ny <- SNP_list[,"derived.y"] + SNP_list[,"ancestral.y"]
-py <- SNP_list[,"derived.y"] / ny
-maf <- ( ((px + py) / 2 >= MAF_threshold) & ((px + py) / 2 <= 1-MAF_threshold) )
-SNP_list_MAF     <- SNP_list[maf,]
-SNP_list_sampled <- SNP_list[sample(dim(SNP_list)[1],sample_size_loci),]
-SNP_list_sampled <- SNP_list_sampled[order(SNP_list_sampled$x,decreasing=FALSE),]
-
-cat(paste(Sys.time(),dim(SNP_list)[1]-dim(SNP_list_MAF)[1],"of",dim(SNP_list)[1],"loci do not fulfil MAF criterion in sample for simulation",simID))
-
-save(SNP_list,SNP_list_sampled,SNP_list_MAF,file=mutable_name)
-
-SNP_list_sampled <- SNP_list_sampled[,c("derived.x","ancestral.x","derived.y","ancestral.y")]
-SNP_list_MAF     <- SNP_list_MAF[,c("derived.x","ancestral.x","derived.y","ancestral.y")]
-
-
-
-
-# write selestim_file
-if (nrow(SNP_list_sampled)>0 ) {
-  con <- file(selestim_sample, open = "w")
-  vect <- c(as.character(2),as.character(nrow(SNP_list_sampled)))
-  writeLines(vect, con = con)
-  write.table(x=SNP_list_sampled,file=con,row.names=FALSE,col.names=FALSE)
-  close(con)
-}else{print("Your sample-SNP list is empty")}
-
-if (nrow(SNP_list_MAF)>0 ) {
-  con <- file(selestim_MAF, open = "w")
-  vect <- c(as.character(2),as.character(nrow(SNP_list_MAF)))
-  writeLines(vect, con = con)
-  write.table(x=SNP_list_MAF,file=con,row.names=FALSE,col.names=FALSE)
-  close(con)
-}else{print("Your MAF-SNP list is empty")}
-
-
-# END ANALYSIS
-# analyse with Fstatistics
-Fstat <- FstatFun_RV(data_4_Ne=selestim_sample,data_4_test=,dT=dT,nbsimul=simF)
-
-save(Fstat,file=Fstat_name)
-cat(paste(Sys.time(),"Analyse Fstat terminée, simulation terminée, répétition n° ",sim))
 
 
 
