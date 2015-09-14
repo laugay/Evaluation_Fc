@@ -575,7 +575,7 @@ Compute.F_c.N_e <- function(mean_FC,dT,S1,S2) {
 ## slim tools RV
 
 
-Make.SNP.list <- function (file_in_1,file_in_2,file_fixed,populations,sample_size,N) {
+Make.SNP.list <- function (file_in_1,file_in_2,file_fixed,populations,sample_size,N,sample_diploid=T) {
   
   
   header_1 <- c("type","x","s","h","pop","time","n_pop")
@@ -606,11 +606,20 @@ Make.SNP.list <- function (file_in_1,file_in_2,file_fixed,populations,sample_siz
       max_columns <- max(nbr_columns)
       all_data <- read.table(get(con),skip = gen_line,fill = TRUE,col.names = 1:max_columns)
       
-      sampled_ind <- sample(x = seq(pop_size),size = sample_size)
-      #assign(x = paste("sampled_ind_",pop,sep = ""),value = sampled_ind)
-      haplo_1 <- (2 * sampled_ind - 1)
-      haplo_2 <- haplo_1 + 1
-      lines <- sort(c(haplo_1,haplo_2))
+      if (!sample_diploid){ 
+        sampled_hap <- sample(x = seq(pop_size*2),size = sample_size*2)
+        #assign(x = paste("sampled_ind_",pop,sep = ""),value = sampled_ind)
+        haplo_1 <- sampled_hap[1:sample_size]
+        haplo_2 <- sampled_hap[(sample_size+1):(sample_size*2)]
+        lines <- sort(sampled_hap)
+      }else{
+        sampled_ind <- sample(x = seq(pop_size),size = sample_size)
+        #assign(x = paste("sampled_ind_",pop,sep = ""),value = sampled_ind)
+        haplo_1 <- (2 * sampled_ind - 1)
+        haplo_2 <- haplo_1 + 1
+        lines <- sort(c(haplo_1,haplo_2))
+      }
+      
       
       sampled_data <- all_data[lines,-1]
       assign(paste("sampled_haplotypes_",pop,sep = ""),sampled_data)

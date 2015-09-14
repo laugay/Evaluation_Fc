@@ -344,7 +344,8 @@ for (replic in 1:num_of_replicates){
                                 file_fixed=slim_log_selection,
                                 populations=2,
                                 sample_size=sample_size,
-                                N=N)
+                                N=N,
+                                sample_diploid=sample_diploid)
       
       if (!quiet) cat(paste(Sys.time(),"List of all polymorphic SNP completed for simulation",simID,"replicate",replic, "\n"))     
       
