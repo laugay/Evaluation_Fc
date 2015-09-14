@@ -671,6 +671,7 @@ Make.SNP.list <- function (file_in_1,file_in_2,file_fixed,populations,sample_siz
   if(length(which(SelEstim_2[,"type"]=="m2"))>0){
     m2_2 <- SelEstim_2[which(SelEstim_2[,"type"]=="m2"),]
     SelEstim_2 <- SelEstim_2[-which(SelEstim_2[,"type"]=="m2"),]
+    m2_2$s <- m2_1$s
   }else{
     m2_2 <- cbind(m2_1[,c("type","x","s","h","pop","time")],"n_pop.y"=NA,"derived.y"=0,"ancestral.y"=100)
   }
@@ -735,8 +736,8 @@ FstatFun_from_dataframe <- function (SNP_list,maf,dT,nbsimul,MAF_threshold) {
   Fc_list[,"FC_denom"] <- Compute.locus.F_c.denom(SNP_list)
   Fc_list[,"FC_obs"]   <- Fc_list[,"FC_num"]/Fc_list[,"FC_denom"]
   
-  Fc_global$FC_sum_num   <- sum(Fc_list[,"FC_num"])
-  Fc_global$FC_sum_denom <- sum(Fc_list[,"FC_denom"])
+  Fc_global$FC_sum_num   <- sum(Fc_list[maf,"FC_num"])
+  Fc_global$FC_sum_denom <- sum(Fc_list[maf,"FC_denom"])
   Fc_global$FC_multi     <- Fc_global$FC_sum_num/Fc_global$FC_sum_denom
   Fc_global$Ne_FC_multi  <- Compute.F_c.N_e(Fc_global$FC_multi,dT,S1,S2)
 
@@ -810,4 +811,33 @@ Drift.simulation.FC <- function(Ne,locus,new_list,freq,nbsimul,dT,S1,S2,MAF_thre
 }
 
 
+FIS.compute <- function(H1,H2,sample_size,num_of_pop=1){
+  #H1 <- H_list_pop[[1]]
+  #H2 <- H_list_pop[[2]]
+  
+  # matrix of TRUE/FALSE
+  homo <- H1==H2
+  
+  # compute h_tilda, the heterozygosity per locus 
+  h_tilda <-  (apply(!homo, MARGIN=1, FUN=sum))/sample_size
+  
+  # Estimation de FIS = f 
+  #n <- c(sample_size, sample_size) 
+  n <- sample_size
+  r <- num_of_pop
+  #  n_bar <- sum(n)/r # the average sample size
+  #n_c = (r*mean(n)-sum(n*n/r/mean(n)))/(r-1)
+  p_tilda <- ( apply(X=(H1==1), MARGIN=1, FUN=sum) + apply(X=(H2==1), MARGIN=1, FUN=sum) ) / 2/sample_size
+  SSI <- 2* (n*p_tilda*(1-p_tilda)) - (1/2)*(n*h_tilda)
+  MSI <- SSI/(n-r)
+  MSG  <- h_tilda/2
+  
+  FIS_locus <- (MSI-MSG)/(MSI + MSG)
+  
+  # somme sur tous les loci
+  #  FIS_hat <- (sum(n_c *MSI) - sum(n_c * MSG))/(sum(n_c*MSI)+sum(n_c*MSG))
+  FIS_hat <- (sum(MSI) - sum(MSG))/(sum(MSI)+sum(MSG))
+  selfing_hat <- 2*FIS_hat/(1+FIS_hat)
+  return(list(Fis_all=FIS_locus,WC_Fis=FIS_hat,sigma_hat=selfing_hat))
+}
 
