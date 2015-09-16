@@ -566,8 +566,12 @@ Compute.locus.F_c.denom <- function(SNP_from_slim) {
 
 ######## Computing Effective Size
 
-Compute.F_c.N_e <- function(mean_FC,dT,S1,S2) {
-  N_e      <- 2*((dT -2)/ (2*(mean_FC - (1/(2*S1)) - (1/(2*S2)))))
+Compute.F_c.N_e <- function(mean_FC,dT,S1,S2,effective_sample_size=NA) {
+  if (is.na(effective_sample_size)){
+    N_e      <- 2*((dT -2)/ (2*(mean_FC - (1/(2*S1)) - (1/(2*S2)))))
+  }else{
+    N_e      <- 2*((dT -2)/ (2*(mean_FC - (1/(effective_sample_size)) - (1/(effective_sample_size)))))
+  }
   return(N_e)
 }
 
@@ -618,6 +622,11 @@ Make.SNP.list <- function (file_in_1,file_in_2,file_fixed,populations,sample_siz
         haplo_1 <- (2 * sampled_ind - 1)
         haplo_2 <- haplo_1 + 1
         lines <- sort(c(haplo_1,haplo_2))
+        #chromosome_sample <- array(NA,sample_size)
+        #sample_from_haplo_1 <- which(sample(c(F,T),sample_size,replace=T))
+        #chromosome_sample[sample_from_haplo_1] <- haplo_1[sample_from_haplo_1]
+        #chromosome_sample[which(is.na(chromosome_sample))] <- haplo_2[which(is.na(chromosome_sample))]
+        #chromosome_sample <- sort(chromosome_sample)
       }
       
       
@@ -725,7 +734,7 @@ Make.SNP.list <- function (file_in_1,file_in_2,file_fixed,populations,sample_siz
                sampled_haplotypes_2_list=sampled_haplotypes_2_list) )
 }
 
-FstatFun_from_dataframe <- function (SNP_list,maf,dT,nbsimul,MAF_threshold) {
+FstatFun_from_dataframe <- function (SNP_list,maf,dT,nbsimul,MAF_threshold,effective_sample_size) {
 
   S1 <- (SNP_list[1,"derived.x"]+SNP_list[1,"ancestral.x"])/2
   S2 <- (SNP_list[1,"derived.y"]+SNP_list[1,"ancestral.y"])/2
@@ -733,8 +742,8 @@ FstatFun_from_dataframe <- function (SNP_list,maf,dT,nbsimul,MAF_threshold) {
   #data_freq_4_test <- cbind( SNP_4_test[,"derived.x"]/(2*S1) ,  SNP_4_test[,"derived.y"]/(2*S2) )
   init_freq_4_test <- SNP_list[,"derived.x"]/(2*S1)
   
-  npop <- 2
-  if (npop!=2) warning("Error, number of populations must be 2")
+  #npop <- 2
+  #if (npop!=2) warning("Error, number of populations must be 2")
 
   Fc_list <- matrix(NA,nrow(SNP_list),5)
   colnames(Fc_list)<-c("FC_num","FC_denom","FC_obs","FC_p_value","FC_q_value")
@@ -748,7 +757,7 @@ FstatFun_from_dataframe <- function (SNP_list,maf,dT,nbsimul,MAF_threshold) {
   Fc_global$FC_sum_num   <- sum(Fc_list[maf,"FC_num"])
   Fc_global$FC_sum_denom <- sum(Fc_list[maf,"FC_denom"])
   Fc_global$FC_multi     <- Fc_global$FC_sum_num/Fc_global$FC_sum_denom
-  Fc_global$Ne_FC_multi  <- Compute.F_c.N_e(Fc_global$FC_multi,dT,S1,S2)
+  Fc_global$Ne_FC_multi  <- Compute.F_c.N_e(Fc_global$FC_multi,dT,S1,S2,effective_sample_size)
 
   
   
@@ -757,15 +766,16 @@ FstatFun_from_dataframe <- function (SNP_list,maf,dT,nbsimul,MAF_threshold) {
   new_list <- list(n_FC=0, Fmat=Fc_list, sim_FC=matrix(NA, nrow=max_row_FC, ncol=nbsimul+2) )
 
   for (locus in 1:nrow(Fc_list) ) {
-    new_list <- Drift.simulation.FC(Ne=round(Fc_global$Ne_FC_multi),
-                                       locus = locus,
-                                       new_list=new_list,
-                                       freq=init_freq_4_test,
-                                       nbsimul=nbsimul,
-                                       dT=dT,
-                                       S1=S1,
-                                       S2=S2,
-                                       MAF_threshold=MAF_threshold)
+    new_list <- Drift.simulation.FC(Ne                    = round(Fc_global$Ne_FC_multi),
+                                    locus                 = locus,
+                                    new_list              = new_list,
+                                    freq                  = init_freq_4_test,
+                                    nbsimul               = nbsimul,
+                                    dT                    = dT,
+                                    S1                    = S1,
+                                    S2                    = S2,
+                                    MAF_threshold         = MAF_threshold,
+                                    effective_sample_size = effective_sample_size)
   }
   
   new_list$Fmat[which(maf==F),4:5] <- NA
@@ -774,7 +784,7 @@ FstatFun_from_dataframe <- function (SNP_list,maf,dT,nbsimul,MAF_threshold) {
 }
 
 
-Drift.simulation.FC <- function(Ne,locus,new_list,freq,nbsimul,dT,S1,S2,MAF_threshold) {
+Drift.simulation.FC <- function(Ne,locus,new_list,freq,nbsimul,dT,S1,S2,MAF_threshold,effective_sample_size=NA) {
   if (is.finite(Ne) && (!is.na(Ne)) && (Ne > 0)) {
     dist <- which(freq[locus] == new_list$sim_FC[,1]) 
     if (length(dist) > 0) {
@@ -794,7 +804,11 @@ Drift.simulation.FC <- function(Ne,locus,new_list,freq,nbsimul,dT,S1,S2,MAF_thre
         for (g in 1:dT) {
           f.drift <- (rbinom(1,Ne,f.drift)) / Ne
         }
-        py[sim] <- rbinom(1,2 * S2,f.drift) / (2 * S2)
+        if(is.na(effective_sample_size)){
+          py[sim] <- rbinom(1,2 * S2,f.drift) / (2 * S2)
+        }else{
+          py[sim] <- rbinom(1,effective_sample_size,f.drift) / (effective_sample_size)
+        }
         if (((px[sim] + py[sim]) / 2) >= MAF_threshold && ((px[sim] + py[sim]) / 2) <= (1-MAF_threshold) ) {
           sim <- sim + 1
         }

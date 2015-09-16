@@ -10,9 +10,10 @@
 # http://messerlab.org/software/
 
 # Run from command line examples:
-# R --no-save --args seed4random 1234  < Main.R 
-# R --no-save --args simID "SelfAdapt_project"  < Main.R 
-# R --no-save < Main.R
+# R --no-save --args seed4random  1234                 < Main.R 
+# R --no-save --args simID        "SelfAdapt_project"  < Main.R 
+# R --no-save --args Ne_only      "c(T)"               < Main.R 
+# R --no-save                                          < Main.R
 
 # This script uses the following packages:
 require(batch)
@@ -60,7 +61,7 @@ sel_coef <- 0.005
 # dominance cofficient
 dominance_coef <- 1
 # length of pure drift period (number of times the population size)
-number_of_times       <- 10 # see below
+number_of_times       <- 4 #10 # see below
 # Adaptation mode: "NM"=new mutation; "SV"=standing variation
 selection_mode <- "SV" #  
 # number of generations between samples
@@ -71,7 +72,7 @@ sample_size_loci <- 10000    # number of loci sampled for demographic inference)
 #threshold for mimimum allele frequency
 MAF_threshold <- 0.01
 # number of simulations for testing Fc
-num_of_sim_Fc <- 10000
+num_of_sim_Fc <- 1000000
 # number of replicates for each scenario
 num_of_replicates <- 100
 # number of attemps to get the selected allele present in tha last generation
@@ -85,10 +86,16 @@ quiet <- F
 # sample diploid individuals or chromosomes
 sample_diploid <- T
 
+# if TRUE: estimate Ne from simulations only, do not perform neutrality tests
+Ne_only <- F    # 
+
+
 # gets parameter and setting values from command line (using package 'batch')
 # example:
 #   R --vanilla --args seed4random 104415 dominance_coef 0.5 < Main.R > Main.out
 parseCommandArgs()
+
+
 
 # Final setup lines
 set.seed(seed4random)
@@ -97,7 +104,10 @@ set.seed(seed4random)
 log_file <- paste0(simID,"_log.txt")
 
 write("Evaluation of Fc statistics for detection of selection. Log file", file=log_file)
-
+if(Ne_only){
+  write("Estimation of Ne only. No test for selection performed.", file=log_file)
+  num_of_sim_Fc <- 0
+}
 
 # Some population genetics quantities of interest:
 theta         <- N*4*u*genome_length
@@ -276,8 +286,6 @@ for (replic in 1:num_of_replicates){
     write.table(mutation_table, slim_init_selection, append=T, quote=F, col.names=F, row.names=F)
     write(out_drift_lines[-(1:(out_drift_gen_line-1))], slim_init_selection, append=T)
     
-    # if (!quiet) cat(paste(Sys.time(),"Episode de SV slim commence, répétition n° ",sim))
-    
     # write input file for slim
     writeMutation          (file=slim_in_selection, number_of_types=2, h=c(0.5,dominance_coef), DFE=c("f","f"), s=c(0,sel_coef), append=F, append_mutation=F)
     writeMutationRate      (file=slim_in_selection, u=u)  
@@ -419,6 +427,13 @@ for (replic in 1:num_of_replicates){
             pop2Fis <- FIS.compute(H1=t(pop2hap1),
                                    H2=t(pop2hap2),
                                    sample_size=sample_size)
+            meanFis <-  mean(pop1Fis$WC_Fis,pop1Fis$WC_Fis)
+            sigma_hat <- 2*meanFis/(1+meanFis)
+            if (sigma_hat<0) sigma_hat<-0
+            if (sigma_hat>1) sigma_hat<-1
+            
+            effective_sample_size <- (2-sigma_hat)*sample_size
+            
             
             # MAKES INPUT FOR fastPHASE FOR HAPLOTYPE-BASED ANALYSES (1 FILE PER CHORMOSOME)
 
@@ -500,7 +515,8 @@ for (replic in 1:num_of_replicates){
                                            maf=maf,
                                            dT=selection_period_duration,
                                            nbsimul=num_of_sim_Fc,
-                                           MAF_threshold=MAF_threshold)
+                                           MAF_threshold=MAF_threshold,
+                                           effective_sample_size=round(effective_sample_size))
             
       
             #head(Fstat$Fc_list)
