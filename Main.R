@@ -389,6 +389,7 @@ for (replic in 1:num_of_replicates){
             if (!quiet) cat(paste(Sys.time(),"SNP under selection fulfils MAF criterion in sample from simulation",simID,"replicate",replic, "\n"))
 
             
+            loci_position_and_name <- matrix(1:sample_size_loci,nrow=sample_size_loci,ncol=1,dimnames=list(SNP_list$x,"loci"))
             
             pop1hap1 <- matrix(NA,nrow=sample_size,ncol=sample_size_loci)
             pop2hap1 <- matrix(NA,nrow=sample_size,ncol=sample_size_loci)
@@ -458,7 +459,6 @@ for (replic in 1:num_of_replicates){
               }
               
             }
-            loci_position_and_name <- matrix(1:sample_size_loci,nrow=sample_size_loci,ncol=1,dimnames=list(SNP_list$x,"loci"))
             
             
             
