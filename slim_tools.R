@@ -566,11 +566,11 @@ Compute.locus.F_c.denom <- function(SNP_from_slim) {
 
 ######## Computing Effective Size
 
-Compute.F_c.N_e <- function(mean_FC,dT,S1,S2,effective_sample_size=NA) {
-  if (is.na(effective_sample_size)){
+Compute.F_c.N_e <- function(mean_FC,dT,S1,S2,sample_diploid=T) {
+  if (sample_diploid){
     N_e      <- 2*((dT -2)/ (2*(mean_FC - (1/(2*S1)) - (1/(2*S2)))))
   }else{
-    N_e      <- 2*((dT -2)/ (2*(mean_FC - (1/(effective_sample_size)) - (1/(effective_sample_size)))))
+    N_e      <- 2*((dT -2)/ (2*(mean_FC - (1/S1) - (1/S2))))
   }
   return(N_e)
 }
@@ -610,31 +610,23 @@ Make.SNP.list <- function (file_in_1,file_in_2,file_fixed,populations,sample_siz
       max_columns <- max(nbr_columns)
       all_data <- read.table(get(con),skip = gen_line,fill = TRUE,col.names = 1:max_columns)
       
-      if (!sample_diploid){ 
-        sampled_hap <- sample(x = seq(pop_size*2),size = sample_size*2)
-        #assign(x = paste("sampled_ind_",pop,sep = ""),value = sampled_ind)
-        haplo_1 <- sampled_hap[1:sample_size]
-        haplo_2 <- sampled_hap[(sample_size+1):(sample_size*2)]
-        lines <- sort(sampled_hap)
-      }else{
-        sampled_ind <- sample(x = seq(pop_size),size = sample_size)
-        #assign(x = paste("sampled_ind_",pop,sep = ""),value = sampled_ind)
-        haplo_1 <- (2 * sampled_ind - 1)
-        haplo_2 <- haplo_1 + 1
-        lines <- sort(c(haplo_1,haplo_2))
-        #chromosome_sample <- array(NA,sample_size)
-        #sample_from_haplo_1 <- which(sample(c(F,T),sample_size,replace=T))
-        #chromosome_sample[sample_from_haplo_1] <- haplo_1[sample_from_haplo_1]
-        #chromosome_sample[which(is.na(chromosome_sample))] <- haplo_2[which(is.na(chromosome_sample))]
-        #chromosome_sample <- sort(chromosome_sample)
+      sampled_ind <- sample(x = seq(pop_size),size = sample_size)
+      haplo_1 <- (2 * sampled_ind - 1)
+      if (!sample_diploid){   haplo_2 <- numeric()
+      }else{                  haplo_2 <- haplo_1 + 1
       }
+      lines <- sort(c(haplo_1,haplo_2))
       
       
       sampled_data <- all_data[lines,-1]
       assign(paste("sampled_haplotypes_",pop,sep = ""),sampled_data)
       counts <- table(unlist(sampled_data),useNA = "no")
       mut_table[names(counts),"derived"] <- counts
-      mut_table[,"ancestral"] <- 2 * sample_size - mut_table[,"derived"]
+      
+      if (!sample_diploid){  mut_table[,"ancestral"] <- sample_size - mut_table[,"derived"]
+      }else{                 mut_table[,"ancestral"] <- 2 * sample_size - mut_table[,"derived"]
+      }
+      
     } else {
       mut_table <- matrix(NA,1,length(header_T))
       colnames(mut_table) <- header_T
@@ -653,7 +645,9 @@ Make.SNP.list <- function (file_in_1,file_in_2,file_fixed,populations,sample_siz
         count <- matrix(NA,num_of_mut,3)
         colnames(count) <- c("n_pop","derived","ancestral")
         count[,"n_pop"]     <- 2 * N
-        count[,"derived"]   <- 2 * sample_size
+        if (!sample_diploid){   count[,"derived"]   <- sample_size
+        }else{                  count[,"derived"]   <- 2 * sample_size
+        }
         count[,"ancestral"] <- 0
         fmut_table <- cbind(fmut_table,count)
       } else {
@@ -673,10 +667,19 @@ Make.SNP.list <- function (file_in_1,file_in_2,file_fixed,populations,sample_siz
   
   sampled_haplotypes_1_list <- sampled_haplotypes_2_list <- list()
   
-  for (i in 1:(2*sample_size) ){
-    sampled_haplotypes_1_list[[i]]<-  mut_table_1[as.character(sampled_haplotypes_1[i,which(!is.na(sampled_haplotypes_1[i,]))]),"x"]
-    sampled_haplotypes_2_list[[i]]<-  mut_table_2[as.character(sampled_haplotypes_2[i,which(!is.na(sampled_haplotypes_2[i,]))]),"x"]
+  
+  if (!sample_diploid){
+    for (i in 1:sample_size ){
+      sampled_haplotypes_1_list[[i]]<-  mut_table_1[as.character(sampled_haplotypes_1[i,which(!is.na(sampled_haplotypes_1[i,]))]),"x"]
+      sampled_haplotypes_2_list[[i]]<-  mut_table_2[as.character(sampled_haplotypes_2[i,which(!is.na(sampled_haplotypes_2[i,]))]),"x"]
+    }
+  }else{
+    for (i in 1:(2*sample_size) ){
+      sampled_haplotypes_1_list[[i]]<-  mut_table_1[as.character(sampled_haplotypes_1[i,which(!is.na(sampled_haplotypes_1[i,]))]),"x"]
+      sampled_haplotypes_2_list[[i]]<-  mut_table_2[as.character(sampled_haplotypes_2[i,which(!is.na(sampled_haplotypes_2[i,]))]),"x"]
+    }
   }
+    
   
   rownames(mut_table_1) <- rownames(mut_table_2) <- rownames(fmut_table) <- c()
   Sel_2 <- rbind(mut_table_2,fmut_table)
@@ -691,7 +694,13 @@ Make.SNP.list <- function (file_in_1,file_in_2,file_fixed,populations,sample_siz
     SelEstim_2 <- SelEstim_2[-which(SelEstim_2[,"type"]=="m2"),]
     m2_2$s <- m2_1$s
   }else{
-    m2_2 <- cbind(m2_1[,c("type","x","s","h","pop","time")],"n_pop.y"=NA,"derived.y"=0,"ancestral.y"=100)
+    if (!sample_diploid){
+      m2_2 <- cbind( m2_1[,c("type","x","s","h","pop","time")],
+                     "n_pop.y"=NA,"derived.y"=0,"ancestral.y"=sample_size)
+    }else{
+      m2_2 <- cbind(m2_1[,c("type","x","s","h","pop","time")],
+                     "n_pop.y"=NA,"derived.y"=0,"ancestral.y"=2*sample_size)      
+    }
   }
   m2_all <- merge(m2_1, m2_2, by=c("type","x","s","h","pop","time"), all = TRUE)
   
@@ -710,15 +719,25 @@ Make.SNP.list <- function (file_in_1,file_in_2,file_fixed,populations,sample_siz
 
   replace.x <- ((is.na(SNP_list[,"derived.x"]) & SNP_list[,"derived.y"] > 0))
   SNP_list[replace.x,"derived.x"] <- 0
-  SNP_list[replace.x,"ancestral.x"] <- 2 * sample_size
   replace.y <- ((is.na(SNP_list[,"derived.y"]) & SNP_list[,"derived.x"] > 0))
   SNP_list[replace.y,"derived.y"] <- 0
-  SNP_list[replace.y,"ancestral.y"] <- 2 * sample_size
-    
-  keep_lines <- !((is.na(SNP_list[,"derived.x"]) & SNP_list[,"derived.y"] == 0)
-                  | (is.na(SNP_list[,"derived.y"]) & SNP_list[,"derived.x"] == 0)
-                  | (SNP_list[,"derived.x"] == 2 * sample_size & SNP_list[,"derived.y"] == 2 * sample_size)
-                  | (SNP_list[,"derived.x"] == 0 & SNP_list[,"derived.y"] == 0))
+  if (!sample_diploid){
+    SNP_list[replace.x,"ancestral.x"] <- sample_size
+    SNP_list[replace.y,"ancestral.y"] <- sample_size
+    keep_lines <- !((is.na(SNP_list[,"derived.x"]) & SNP_list[,"derived.y"] == 0)
+                    | (is.na(SNP_list[,"derived.y"]) & SNP_list[,"derived.x"] == 0)
+                    | (SNP_list[,"derived.x"] == sample_size & SNP_list[,"derived.y"] == sample_size)
+                    | (SNP_list[,"derived.x"] == 0 & SNP_list[,"derived.y"] == 0))
+  }else{
+    SNP_list[replace.x,"ancestral.x"] <- 2 * sample_size
+    SNP_list[replace.y,"ancestral.y"] <- 2 * sample_size
+    keep_lines <- !((is.na(SNP_list[,"derived.x"]) & SNP_list[,"derived.y"] == 0)
+                    | (is.na(SNP_list[,"derived.y"]) & SNP_list[,"derived.x"] == 0)
+                    | (SNP_list[,"derived.x"] == 2 * sample_size & SNP_list[,"derived.y"] == 2 * sample_size)
+                    | (SNP_list[,"derived.x"] == 0 & SNP_list[,"derived.y"] == 0))
+  }
+  
+  
   
 
   SNP_list <- SNP_list[keep_lines,]
@@ -734,16 +753,19 @@ Make.SNP.list <- function (file_in_1,file_in_2,file_fixed,populations,sample_siz
                sampled_haplotypes_2_list=sampled_haplotypes_2_list) )
 }
 
-FstatFun_from_dataframe <- function (SNP_list,maf,dT,nbsimul,MAF_threshold,effective_sample_size) {
+FstatFun_from_dataframe <- function (SNP_list,maf,dT,nbsimul,MAF_threshold,sample_diploid=T) {
 
-  S1 <- (SNP_list[1,"derived.x"]+SNP_list[1,"ancestral.x"])/2
-  S2 <- (SNP_list[1,"derived.y"]+SNP_list[1,"ancestral.y"])/2
+  if(sample_diploid){
+    S1 <- (SNP_list[1,"derived.x"]+SNP_list[1,"ancestral.x"])/2
+    S2 <- (SNP_list[1,"derived.y"]+SNP_list[1,"ancestral.y"])/2
+    init_freq_4_test <- SNP_list[,"derived.x"]/(2*S1)
+  }else{
+    S1 <- (SNP_list[1,"derived.x"]+SNP_list[1,"ancestral.x"])
+    S2 <- (SNP_list[1,"derived.y"]+SNP_list[1,"ancestral.y"])
+    init_freq_4_test <- SNP_list[,"derived.x"]/S1
+  }
 
-  #data_freq_4_test <- cbind( SNP_4_test[,"derived.x"]/(2*S1) ,  SNP_4_test[,"derived.y"]/(2*S2) )
-  init_freq_4_test <- SNP_list[,"derived.x"]/(2*S1)
   
-  #npop <- 2
-  #if (npop!=2) warning("Error, number of populations must be 2")
 
   Fc_list <- matrix(NA,nrow(SNP_list),5)
   colnames(Fc_list)<-c("FC_num","FC_denom","FC_obs","FC_p_value","FC_q_value")
@@ -757,7 +779,7 @@ FstatFun_from_dataframe <- function (SNP_list,maf,dT,nbsimul,MAF_threshold,effec
   Fc_global$FC_sum_num   <- sum(Fc_list[maf,"FC_num"])
   Fc_global$FC_sum_denom <- sum(Fc_list[maf,"FC_denom"])
   Fc_global$FC_multi     <- Fc_global$FC_sum_num/Fc_global$FC_sum_denom
-  Fc_global$Ne_FC_multi  <- Compute.F_c.N_e(Fc_global$FC_multi,dT,S1,S2,effective_sample_size)
+  Fc_global$Ne_FC_multi  <- Compute.F_c.N_e(Fc_global$FC_multi,dT,S1,S2,sample_diploid)
 
   
   
@@ -766,16 +788,16 @@ FstatFun_from_dataframe <- function (SNP_list,maf,dT,nbsimul,MAF_threshold,effec
   new_list <- list(n_FC=0, Fmat=Fc_list, sim_FC=matrix(NA, nrow=max_row_FC, ncol=nbsimul+2) )
 
   for (locus in 1:nrow(Fc_list) ) {
-    new_list <- Drift.simulation.FC(Ne                    = round(Fc_global$Ne_FC_multi),
-                                    locus                 = locus,
-                                    new_list              = new_list,
-                                    freq                  = init_freq_4_test,
-                                    nbsimul               = nbsimul,
-                                    dT                    = dT,
-                                    S1                    = S1,
-                                    S2                    = S2,
-                                    MAF_threshold         = MAF_threshold,
-                                    effective_sample_size = effective_sample_size)
+    new_list <- Drift.simulation.FC(Ne             = round(Fc_global$Ne_FC_multi),
+                                    locus          = locus,
+                                    new_list       = new_list,
+                                    freq           = init_freq_4_test,
+                                    nbsimul        = nbsimul,
+                                    dT             = dT,
+                                    S1             = S1,
+                                    S2             = S2,
+                                    MAF_threshold  = MAF_threshold,
+                                    sample_diploid = sample_diploid)
   }
   
   new_list$Fmat[which(maf==F),4:5] <- NA
@@ -784,7 +806,7 @@ FstatFun_from_dataframe <- function (SNP_list,maf,dT,nbsimul,MAF_threshold,effec
 }
 
 
-Drift.simulation.FC <- function(Ne,locus,new_list,freq,nbsimul,dT,S1,S2,MAF_threshold,effective_sample_size=NA) {
+Drift.simulation.FC <- function(Ne,locus,new_list,freq,nbsimul,dT,S1,S2,MAF_threshold,sample_diploid=T) {
   if (is.finite(Ne) && (!is.na(Ne)) && (Ne > 0)) {
     dist <- which(freq[locus] == new_list$sim_FC[,1]) 
     if (length(dist) > 0) {
@@ -794,8 +816,14 @@ Drift.simulation.FC <- function(Ne,locus,new_list,freq,nbsimul,dT,S1,S2,MAF_thre
       new_list$Fmat[locus,"FC_p_value"] <- p_value
     } else {
       px <- rep(freq[locus],nbsimul)
-      px[which(px == 0)] <- 1 / (2 * S1)
-      px[which(px == 1)] <- 1 - 1 / (2 * S1)
+      if(sample_diploid){
+        px[which(px == 0)] <- 1/(2*S1)
+        px[which(px == 1)] <- 1 - 1/(2*S1)
+      }else{
+        px[which(px == 0)] <- 1/S1
+        px[which(px == 1)] <- 1 - 1/S1
+      }
+      
       FC_sim <- rep(0,nbsimul)
       py <- rep(0,nbsimul)
       sim <- 1
@@ -804,10 +832,10 @@ Drift.simulation.FC <- function(Ne,locus,new_list,freq,nbsimul,dT,S1,S2,MAF_thre
         for (g in 1:dT) {
           f.drift <- (rbinom(1,Ne,f.drift)) / Ne
         }
-        if(is.na(effective_sample_size)){
+        if(sample_diploid){
           py[sim] <- rbinom(1,2 * S2,f.drift) / (2 * S2)
         }else{
-          py[sim] <- rbinom(1,effective_sample_size,f.drift) / (effective_sample_size)
+          py[sim] <- rbinom(1,S2,f.drift) / S2
         }
         if (((px[sim] + py[sim]) / 2) >= MAF_threshold && ((px[sim] + py[sim]) / 2) <= (1-MAF_threshold) ) {
           sim <- sim + 1

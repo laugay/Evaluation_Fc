@@ -84,7 +84,7 @@ max_number_of_trials <- 200
 quiet <- F 
 
 # sample diploid individuals or chromosomes
-sample_diploid <- T
+sample_diploid <- F
 
 # if TRUE: estimate Ne from simulations only, do not perform neutrality tests
 Ne_only <- F    # 
@@ -391,48 +391,75 @@ for (replic in 1:num_of_replicates){
             
             
             pop1hap1 <- matrix(NA,nrow=sample_size,ncol=sample_size_loci)
-            pop1hap2 <- matrix(NA,nrow=sample_size,ncol=sample_size_loci)
             pop2hap1 <- matrix(NA,nrow=sample_size,ncol=sample_size_loci)
-            pop2hap2 <- matrix(NA,nrow=sample_size,ncol=sample_size_loci)
-            for (i in 1:(2*sample_size) ){
-              sampled_haplotypes_1_list[[i]]<-  setdiff(intersect(sampled_haplotypes_1_list[[i]],SNP_list$x),m2$x)
-              sampled_haplotypes_2_list[[i]]<-  setdiff(union(intersect(sampled_haplotypes_2_list[[i]],SNP_list$x),SNP_list[which(SNP_list$n_pop.y==2*N),"x"]),m2$x)
+            if (sample_diploid){
+              pop1hap2 <- matrix(NA,nrow=sample_size,ncol=sample_size_loci)
+              pop2hap2 <- matrix(NA,nrow=sample_size,ncol=sample_size_loci)
+              for (i in 1:(2*sample_size) ){
+                sampled_haplotypes_1_list[[i]]<-  setdiff(intersect(sampled_haplotypes_1_list[[i]],SNP_list$x),m2$x)
+                sampled_haplotypes_2_list[[i]]<-  setdiff(union(intersect(sampled_haplotypes_2_list[[i]],SNP_list$x),SNP_list[which(SNP_list$n_pop.y==2*N),"x"]),m2$x)
+              }
+              for (i in 1:sample_size){
+                haplo <- array(0,sample_size_loci)
+                derived_alleles <- loci_position_and_name[as.character(intersect(sampled_haplotypes_1_list[[(i*2)-1]],SNP_list$x)),]
+                haplo[ derived_alleles ] <- 1
+                pop1hap1[i,] <- haplo
+                
+                haplo <- array(0,sample_size_loci)
+                derived_alleles <- loci_position_and_name[as.character(intersect(sampled_haplotypes_1_list[[(i*2)]],SNP_list$x)),]
+                haplo[ derived_alleles ] <- 1
+                pop1hap2[i,] <- haplo
+                
+                haplo <- array(0,sample_size_loci)
+                derived_alleles <- loci_position_and_name[as.character(intersect(sampled_haplotypes_2_list[[(i*2)-1]],SNP_list$x)),]
+                haplo[ derived_alleles ] <- 1
+                pop2hap1[i,] <- haplo
+                
+                haplo <- array(0,sample_size_loci)
+                derived_alleles <- loci_position_and_name[as.character(intersect(sampled_haplotypes_2_list[[(i*2)]],SNP_list$x)),]
+                haplo[ derived_alleles ] <- 1
+                pop2hap2[i,] <- haplo
+              }
+
+              pop1Fis <- FIS.compute(H1=t(pop1hap1),
+                                     H2=t(pop1hap2),
+                                     sample_size=sample_size)
+              pop2Fis <- FIS.compute(H1=t(pop2hap1),
+                                     H2=t(pop2hap2),
+                                     sample_size=sample_size)
+              
+              sigma_hat_1 <- 2*pop1Fis$WC_Fis/(1+pop1Fis$WC_Fis)
+              sigma_hat_2 <- 2*pop2Fis$WC_Fis/(1+pop2Fis$WC_Fis)
+              
+              meanFis <-  mean(pop1Fis$WC_Fis,pop2Fis$WC_Fis)
+              sigma_hat <- 2*meanFis/(1+meanFis)
+
+              if (sigma_hat<0) sigma_hat<-0
+              if (sigma_hat>1) sigma_hat<-1
+              
+              effective_sample_size <- (2-sigma_hat)*sample_size
+            
+            }else{
+              for (i in 1:sample_size ){
+                sampled_haplotypes_1_list[[i]]<-  setdiff(intersect(sampled_haplotypes_1_list[[i]],SNP_list$x),m2$x)
+                sampled_haplotypes_2_list[[i]]<-  setdiff(union(intersect(sampled_haplotypes_2_list[[i]],SNP_list$x),SNP_list[which(SNP_list$n_pop.y==2*N),"x"]),m2$x)
+              }
+              for (i in 1:sample_size){
+                haplo <- array(0,sample_size_loci)
+                derived_alleles <- loci_position_and_name[as.character(intersect(sampled_haplotypes_1_list[[i]],SNP_list$x)),]
+                haplo[ derived_alleles ] <- 1
+                pop1hap1[i,] <- haplo
+                
+                haplo <- array(0,sample_size_loci)
+                derived_alleles <- loci_position_and_name[as.character(intersect(sampled_haplotypes_2_list[[i]],SNP_list$x)),]
+                haplo[ derived_alleles ] <- 1
+                pop2hap1[i,] <- haplo
+                
+              }
+              
             }
             loci_position_and_name <- matrix(1:sample_size_loci,nrow=sample_size_loci,ncol=1,dimnames=list(SNP_list$x,"loci"))
-            for (i in 1:sample_size){
-              haplo <- array(0,sample_size_loci)
-              derived_alleles <- loci_position_and_name[as.character(intersect(sampled_haplotypes_1_list[[(i*2)-1]],SNP_list$x)),]
-              haplo[ derived_alleles ] <- 1
-              pop1hap1[i,] <- haplo
-              
-              haplo <- array(0,sample_size_loci)
-              derived_alleles <- loci_position_and_name[as.character(intersect(sampled_haplotypes_1_list[[(i*2)]],SNP_list$x)),]
-              haplo[ derived_alleles ] <- 1
-              pop1hap2[i,] <- haplo
-              
-              haplo <- array(0,sample_size_loci)
-              derived_alleles <- loci_position_and_name[as.character(intersect(sampled_haplotypes_2_list[[(i*2)-1]],SNP_list$x)),]
-              haplo[ derived_alleles ] <- 1
-              pop2hap1[i,] <- haplo
-              
-              haplo <- array(0,sample_size_loci)
-              derived_alleles <- loci_position_and_name[as.character(intersect(sampled_haplotypes_2_list[[(i*2)]],SNP_list$x)),]
-              haplo[ derived_alleles ] <- 1
-              pop2hap2[i,] <- haplo
-            }
             
-            pop1Fis <- FIS.compute(H1=t(pop1hap1),
-                                   H2=t(pop1hap2),
-                                   sample_size=sample_size)
-            pop2Fis <- FIS.compute(H1=t(pop2hap1),
-                                   H2=t(pop2hap2),
-                                   sample_size=sample_size)
-            meanFis <-  mean(pop1Fis$WC_Fis,pop1Fis$WC_Fis)
-            sigma_hat <- 2*meanFis/(1+meanFis)
-            if (sigma_hat<0) sigma_hat<-0
-            if (sigma_hat>1) sigma_hat<-1
-            
-            effective_sample_size <- (2-sigma_hat)*sample_size
             
             
             # MAKES INPUT FOR fastPHASE FOR HAPLOTYPE-BASED ANALYSES (1 FILE PER CHORMOSOME)
@@ -516,7 +543,7 @@ for (replic in 1:num_of_replicates){
                                            dT=selection_period_duration,
                                            nbsimul=num_of_sim_Fc,
                                            MAF_threshold=MAF_threshold,
-                                           effective_sample_size=round(effective_sample_size))
+                                           sample_diploid=sample_diploid)
             
       
             #head(Fstat$Fc_list)
