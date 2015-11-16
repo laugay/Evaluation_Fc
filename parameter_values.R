@@ -11,7 +11,7 @@ u <- 1e-8
 # recombination rate per bp
 r <- 1e-8
 # genome size
-genome_length <- 5e8
+genome_length <- 5e5
 # number of chromosomes
 chr_num <- 2
 # effective population size (Ne)
@@ -27,8 +27,8 @@ selection_mode <- "SV"
 # number of generations between samples
 selection_period_duration <- 20
 # sample size
-sample_size      <- 50      # number of diploid individuals sampled
-sample_size_loci <- 1000    # number of loci sampled for demographic inference)
+sample_size      <- 50   # number of diploid individuals sampled
+sample_size_loci <- 5    # number of loci sampled for demographic inference)
 #threshold for mimimum allele frequency
 MAF_threshold   <- 0.01
 # number of simulations for neutrality test 

@@ -87,4 +87,5 @@ for (item in files2delete){
 
 
 # test
-# R --no-save --args sigma 0.0 sel_coef 0.0 simID "test" selection_mode "SV" selection_period_duration 20 seed4random 4444 replic 0 N 500 chr_num 2 genome_length 500000 sample_size 50 sample_size_loci 5 < Main.R
+# R --no-save --args sigma 0.0 sel_coef 0.0 simID "test" selection_mode "SV" selection_period_duration 20 seed4random 4444 replic 0 N 500 chr_num 2 genome_length 5e5 sample_size 50 sample_size_loci 5 < Main.R
+# R --no-save --args sigma 0.0 sel_coef 0.0 simID "test" selection_mode "SV" selection_period_duration 20 seed4random 4444 replic 0 N 500 chr_num 2 genome_length 5e8 sample_size 50 sample_size_loci 1000 < Main.R
