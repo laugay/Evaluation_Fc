@@ -56,7 +56,7 @@ source("simulation_selection.R")
 
 # read SLiM output files from selection period
 # sample individuals and loci
-source("simulation_sample_output.R")
+source("sample_output.R")
 
 # calculate F statistics, estimate N
 source("estimate_demography.R")
