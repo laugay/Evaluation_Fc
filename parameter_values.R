@@ -27,7 +27,7 @@ selection_mode <- "SV"
 # number of generations between samples
 selection_period_duration <- 20
 # sample size
-sample_size      <- 50   # number of diploid individuals sampled
+sample_size      <- c(50,50)   # number of diploid individuals sampled
 sample_size_loci <- 5    # number of loci sampled for demographic inference)
 #threshold for mimimum allele frequency
 MAF_threshold   <- 0.01

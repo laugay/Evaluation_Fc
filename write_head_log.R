@@ -7,12 +7,12 @@ if(Ne_only){
 # Some population genetics quantities of interest:
 theta         <- N*4*u*genome_length
 Ns            <- N*sel_coef
-expected_S    <- u*genome_length*4*N*sum(1/1:(sample_size-1))
+expected_S    <- u*genome_length*4*N*sum(1/1:(sample_size[2]-1))
 E_Ne          <- (2-sigma)*N  # number of gene copies
 E_Fst         <- selection_period_duration/(selection_period_duration+2*E_Ne)
 
 # check that sample sizes (individuals and loci) are OK with parameters
-if (N<sample_size) warning(paste(Sys.time(),"/!\\ Sample size larger than population size in scenario",simID,"\n"))
+if (any(N<sample_size)) warning(paste(Sys.time(),"/!\\ Sample size larger than population size in scenario",simID,"\n"))
 if (expected_S<sample_size_loci) warning(paste(Sys.time(),"/!\\ Number of loci to sample lower than the expected number of polymorphic sites in scenario",simID,"\n"))
 # check that selection strength makes scenario be nearly-neutral
 if (Ns>=-1 & Ns<=1) warning(paste(Sys.time(),"/!\\ Selection strength is very low: neutral or nearly neutral model in scenario",simID,"\n"))
@@ -56,7 +56,7 @@ write("", file=log_file,append=T)
 write("SAMPLE", file=log_file,append=T)
 write(paste("Pre-simulation for mutation-drift equilibrium (neutral):",drift_period_duration), file=log_file,append=T)
 write(paste("Time period between samples (selection):",selection_period_duration), file=log_file,append=T)
-write(paste("Sample size (individuals):",sample_size), file=log_file,append=T)
+write(paste("Sample size (individuals) time",1:2,":",sample_size), file=log_file,append=T)
 write(paste("Sample size (loci):",sample_size_loci), file=log_file,append=T)
 write(paste("Expected number of polymorphisms (in a one generation sample):",expected_S), file=log_file,append=T)
 write(paste("Minimum allele frequency threshold:",MAF_threshold), file=log_file,append=T)

@@ -163,7 +163,7 @@ Make_sample <- function (haplotypes_1,
   # sample individuals
   for (pop in 1:2) {
     pop_size <- nrow(get(paste0("haplotypes_",pop))) / 2  # in number of individuals 
-    sampled_ind <- sample(x = seq(pop_size),size = sample_size)
+    sampled_ind <- sample(x = seq(pop_size),size = sample_size[pop])
     haplo_1 <- (2 * sampled_ind - 1)
     haplo_2 <- haplo_1 + 1
     lines_2_sample <- sort(c(haplo_1,haplo_2))
@@ -180,7 +180,7 @@ Make_sample <- function (haplotypes_1,
   }
   loci_polymorphic_in_sample <- table(rbind(sampled_haplotypes_1,sampled_haplotypes_2))
   loci_polymorphic_in_sample <- loci_polymorphic_in_sample[which(loci_polymorphic_in_sample>0)]
-  loci_polymorphic_in_sample <- loci_polymorphic_in_sample[which(loci_polymorphic_in_sample<(2*2*sample_size))]
+  loci_polymorphic_in_sample <- loci_polymorphic_in_sample[which(loci_polymorphic_in_sample<(sum(sample_size*2)))]
   loci_polymorphic_in_sample <- as.numeric(names(loci_polymorphic_in_sample))
   loci_polymorphic_in_sample <- setdiff(loci_polymorphic_in_sample,removed_loci)
   write(paste("Total number of bi-allelic loci in the sample:",length(loci_polymorphic_in_sample)), file=log_file,append=T)
@@ -209,14 +209,15 @@ Make_sample <- function (haplotypes_1,
 
   loci_position_and_name <- matrix(1:sample_size_loci,nrow=sample_size_loci,ncol=1,dimnames=list(SNP_table$x,"loci"))
   
-  pop1hap <- matrix(NA,nrow=sample_size*2,ncol=sample_size_loci)
-  pop2hap <- matrix(NA,nrow=sample_size*2,ncol=sample_size_loci)
-  for (i in 1:(2*sample_size)){
+  pop1hap <- matrix(NA,nrow=sample_size[1]*2,ncol=sample_size_loci)
+  pop2hap <- matrix(NA,nrow=sample_size[2]*2,ncol=sample_size_loci)
+  for (i in 1:(2*sample_size[1])){
     haplo <- array(0,sample_size_loci)
     derived_alleles <- loci_position_and_name[as.character(intersect(sampled_haplotypes_1[i,],SNP_table$x)),]
     haplo[ derived_alleles ] <- 1
     pop1hap[i,] <- haplo
-    
+  }    
+  for (i in 1:(2*sample_size[2])){
     haplo <- array(0,sample_size_loci)
     derived_alleles <- loci_position_and_name[as.character(intersect(sampled_haplotypes_2[i,],SNP_table$x)),]
     haplo[ derived_alleles ] <- 1
@@ -225,11 +226,11 @@ Make_sample <- function (haplotypes_1,
   sampled_haplotypes_1 <- pop1hap
   sampled_haplotypes_2 <- pop2hap
   remove(haplo,pop1hap,pop2hap)
-  hap1 <- rbind( as.matrix(sampled_haplotypes_1[((1:sample_size)*2)-1,]) , as.matrix(sampled_haplotypes_2[((1:sample_size)*2)-1,]) )
-  hap2 <- rbind( as.matrix(sampled_haplotypes_1[((1:sample_size)*2)  ,]) , as.matrix(sampled_haplotypes_2[((1:sample_size)*2)  ,]) )
-  M <- array( c(hap1,hap2), dim=c(sample_size*2,sample_size_loci,2) )
+  hap1 <- rbind( as.matrix(sampled_haplotypes_1[((1:sample_size[1])*2)-1,]) , as.matrix(sampled_haplotypes_2[((1:sample_size[2])*2)-1,]) )
+  hap2 <- rbind( as.matrix(sampled_haplotypes_1[((1:sample_size[1])*2)  ,]) , as.matrix(sampled_haplotypes_2[((1:sample_size[2])*2)  ,]) )
+  M <- array( c(hap1,hap2), dim=c(sum(sample_size),sample_size_loci,2) )
   genotype_data <- apply(M, c(1,2), sum)
-  genotype_data <- cbind( seq_len(sample_size*2), c(rep(1,each=sample_size),rep(2,each=sample_size)), genotype_data )
+  genotype_data <- cbind( seq_len(sum(sample_size)), c(rep(1,each=sample_size[1]),rep(2,each=sample_size[2])), genotype_data )
   remove(M,hap1,hap2)
 
   return( list(SNP_table=SNP_table,
