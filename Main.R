@@ -59,7 +59,7 @@ source("simulation_selection.R")
 source("sample_output.R")
 
 # calculate F statistics, estimate N
-source("estimate_demography.R")
+#source("estimate_demography.R")
 
 
 
@@ -79,7 +79,7 @@ files2delete <- c(slim_out_drift,
                   slim_log_drift,
                   slim_log_selection)
 for (item in files2delete){
-  #system( paste("rm",item) )
+  system( paste("rm",item) )
 }
 
 

@@ -253,11 +253,25 @@ compute_Fstats <- function (data,infile=NA) {                       # compute th
   F_ST <- sum(MSP - MSI) / sum(MSP + (nc - 1) * MSI + nc * MSG)		# compute the multilocus F_ST (see Weir 1996, p. 178)
   F_IS <- sum(MSI - MSG) / sum(MSI + MSG)                         # compute the multilocus F_IS
 
-  Fstats <- list(F_ST=F_ST,
-                 F_IS=F_IS,
-                 F_ST_locus=F_ST_locus,
-                 F_IS_locus=F_IS_locus)
   
+  if (length(lst.pops)==2){
+    F_C.numerator   <- (p.1[1,] - p.1[2,])^2
+    F_C.denominator <- ((p.1[1,] + p.1[2,]) / 2 - p.1[1,] * p.1[2,])
+    F_C_locus       <- FC.numerator/FC.denominator
+    F_C             <- sum(FC.numerator)/sum(FC.denominator)
+
+    Fstats <- list(F_ST = F_ST,
+                   F_IS = F_IS,
+                   F_C  = F_C,
+                   F_ST_locus = F_ST_locus,
+                   F_IS_locus = F_IS_locus,
+                   F_C_locus  = F_C_locus)
+  }else{
+    Fstats <- list(F_ST = F_ST,
+                   F_IS = F_IS,
+                   F_ST_locus = F_ST_locus,
+                   F_IS_locus = F_IS_locus)
+  }
   return (Fstats)
 }
 
