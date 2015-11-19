@@ -54,7 +54,10 @@ parseCommandArgs()
 # set random seed
 set.seed(seed4random)
 
-if (Ne_only)             num_of_sim_Fc    <- 0
+if (Ne_only) num_of_sim_Fc    <- 0
+
+if (length(sample_size)==1) sample_size <- c(sample_size,sample_size)
+if (length(sample_size)>2)  sample_size <- sample_size[1:2]
 
 # length of pure drift period
 drift_period_duration <- number_of_times*N
