@@ -1,38 +1,13 @@
-
-############################################# FUNCTIONS FOR FC ANALISIS ######################################
-
-######## FC (numerator)
-Compute.locus.F_c.num <- function(SNP_from_slim) {
-  counts <- SNP_from_slim[,c("derived.x", "ancestral.x",  "derived.y", "ancestral.y")]
-  
-  r <- ncol(counts) / 2
-  l <- seq(1,(2 * r),2)
-  ss <- counts[,l] + counts[,(l + 1)]  
-  n <- rowSums(ss)
-  p <- counts[,l] / ss
-  q <- counts[,(l + 1)] / ss
-  FC.numerator <- (p[,1] - p[,2])^2 + (q[,1] - q[,2])^2
-  return(FC.numerator)
+######## Estimating Effective Population Size (Ne)
+EstimateNe.F_C <- function(FC,dT,S1,S2) {
+  Ne_hat <- 2*((dT -2)/ (2*(FC - (1/(2*S1)) - (1/(2*S2)))))
+  if (Ne_hat<0) Ne_hat <- NA
+  return(Ne_hat)
 }
-######## FC (denominator)
-Compute.locus.F_c.denom <- function(SNP_from_slim) {
-  counts <- SNP_from_slim[,c("derived.x", "ancestral.x",  "derived.y", "ancestral.y")]
-  
-  r <- ncol(counts) / 2
-  l <- seq(1,(2 * r),2)
-  ss <- counts[,l] + counts[,(l + 1)]  
-  n <- rowSums(ss)
-  p <- counts[,l] / ss
-  q <- counts[,(l + 1)] / ss
-  FC.denominator <- ((p[,1] + p[,2]) / 2 - p[,1] * p[,2]) + ((q[,1] + q[,2]) / 2 - q[,1] * q[,2])
-  return(FC.denominator)
-}
-
-######## Computing Effective Size
-
-Compute.F_c.N_e <- function(mean_FC,dT,S1,S2) {
-  N_e      <- 2*((dT -2)/ (2*(mean_FC - (1/(2*S1)) - (1/(2*S2)))))
-  return(N_e)
+EstimateNe.F_ST <- function(Fst_hat,dT) {
+  Ne_hat <- dt * (1 - Fst_hat) / (2 * Fst_hat) 
+  if (Ne_hat<0) Ne_hat <- NA
+  return(Ne_hat)
 }
 
 
@@ -80,39 +55,6 @@ FstatFun_from_dataframe <- function (SNP_list,maf,dT,nbsimul,MAF_threshold) {
   
   return(list(Fc_list=new_list$Fmat,Fc_global=Fc_global))
 }
-
-
-
-FIS.compute <- function(H1,H2,sample_size,num_of_pop=1){
-  #H1 <- H_list_pop[[1]]
-  #H2 <- H_list_pop[[2]]
-  
-  # matrix of TRUE/FALSE
-  homo <- H1==H2
-  
-  # compute h_tilda, the heterozygosity per locus 
-  h_tilda <-  (apply(!homo, MARGIN=1, FUN=sum))/sample_size
-  
-  # Estimation de FIS = f 
-  #n <- c(sample_size, sample_size) 
-  n <- sample_size
-  r <- num_of_pop
-  #  n_bar <- sum(n)/r # the average sample size
-  #n_c = (r*mean(n)-sum(n*n/r/mean(n)))/(r-1)
-  p_tilda <- ( apply(X=(H1==1), MARGIN=1, FUN=sum) + apply(X=(H2==1), MARGIN=1, FUN=sum) ) / 2/sample_size
-  SSI <- 2* (n*p_tilda*(1-p_tilda)) - (1/2)*(n*h_tilda)
-  MSI <- SSI/(n-r)
-  MSG  <- h_tilda/2
-  
-  FIS_locus <- (MSI-MSG)/(MSI + MSG)
-  
-  # somme sur tous les loci
-  #  FIS_hat <- (sum(n_c *MSI) - sum(n_c * MSG))/(sum(n_c*MSI)+sum(n_c*MSG))
-  FIS_hat <- (sum(MSI) - sum(MSG))/(sum(MSI)+sum(MSG))
-  selfing_hat <- 2*FIS_hat/(1+FIS_hat)
-  return(list(Fis_all=FIS_locus,WC_Fis=FIS_hat,sigma_hat=selfing_hat))
-}
-
 
 
 
