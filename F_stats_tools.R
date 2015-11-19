@@ -208,11 +208,11 @@ compute_Fstats <- function (data,infile=NA) {                       # compute th
   n <- matrix(NA,nrow = nbr.pops,ncol = nbr.loci)									# define the matrix of sample sizes
   
   cpt <- 1																										
-  for (i in lst.pops) {																						# loop over samples
-    counts[cpt,] <- colSums(as.matrix(gen[which(pop == i),]))								# compute the allele counts from the dataset (per sample and per locus)
-    nbr.hmzgtes.p.1[cpt,] <- colSums(as.matrix(gen[which(pop == i),] == 0))	# compute the number of type-1 homozygotes
-    nbr.hmzgtes.p.2[cpt,] <- colSums(as.matrix(gen[which(pop == i),] == 2))	# compute the number of type-2 homozygotes
-    n[cpt,] <- colSums(as.matrix(gen[which(pop == i),] != 9))								# compute the NUMBER OF INDIVIDUALS (per sample and per locus)
+  for (i in lst.pops) {																						          # loop over samples
+    counts[cpt,] <- colSums(as.matrix(gen[which(pop == i),]),na.rm=TRUE)		# compute the allele counts from the dataset (per sample and per locus)
+    nbr.hmzgtes.p.1[cpt,] <- colSums(as.matrix(gen[which(pop == i),] == 0),na.rm=TRUE)	# compute the number of type-1 homozygotes
+    nbr.hmzgtes.p.2[cpt,] <- colSums(as.matrix(gen[which(pop == i),] == 2),na.rm=TRUE)	# compute the number of type-2 homozygotes
+    n[cpt,] <- colSums(as.matrix(gen[which(pop == i),] != 9),na.rm=TRUE)								# compute the NUMBER OF INDIVIDUALS (per sample and per locus)
     cpt <- cpt + 1
   }
   
@@ -265,12 +265,16 @@ compute_Fstats <- function (data,infile=NA) {                       # compute th
                    F_C  = F_C,
                    F_ST_locus = F_ST_locus,
                    F_IS_locus = F_IS_locus,
-                   F_C_locus  = F_C_locus)
+                   F_C_locus  = F_C_locus,
+                   p = p.1,
+                   n = n)
   }else{
     Fstats <- list(F_ST = F_ST,
                    F_IS = F_IS,
                    F_ST_locus = F_ST_locus,
-                   F_IS_locus = F_IS_locus)
+                   F_IS_locus = F_IS_locus,
+                   p = p.1,
+                   n = n)
   }
   return (Fstats)
 }
