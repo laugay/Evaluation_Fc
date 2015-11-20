@@ -14,6 +14,10 @@
 # 	`1' corresponds to heterozygotes
 # 	`2' corresponds to homozygotes for type-2 alleles
 
+# data as an R matrix with appropriate format or infile as a text file in the appropriate format
+# MAF_threshold:   threshold to filter loci with a mi9numim maf (minor allele frequency)
+# delta_T:         number of generations between time samples
+# num_of_sim_test: number of replicates of drift simulations to build null FC distribution
 FC_outlier_test <- function(data,infile=NA,MAF_threshold,delta_T,num_of_sim_test){
   # read the data
   if (!is.na(infile)) data <- read.table(infile) 
