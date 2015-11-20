@@ -1,7 +1,7 @@
 # DEFAULT VALUES
 
 # Set seed for random number generation
-seed4random <- 123456
+seed4random <- 166656
 # Simulation ID for file identification
 simID <- "test"
 # selfing rate
@@ -27,16 +27,16 @@ selection_mode <- "SV"
 # number of generations between samples
 selection_period_duration <- 20
 # sample size
-sample_size      <- c(50,50)   # number of diploid individuals sampled
-sample_size_loci <- 5    # number of loci sampled for demographic inference)
+sample_size      <- c(40,60)   # number of diploid individuals sampled
+sample_size_loci <- 20    # number of loci sampled for demographic inference)
 #threshold for mimimum allele frequency
 MAF_threshold   <- 0.01
 # number of simulations for neutrality test 
-num_of_sim_test <- 1000000
+num_of_sim_test <- 1e6
 # replicate ID
 replic <- 0
 # if TRUE: estimate Ne from simulations only, do not perform neutrality tests
-Ne_only <- T
+Ne_only <- F
 # Do not output progress messages
 quiet <- F
 # Do not output whole population
@@ -54,7 +54,7 @@ parseCommandArgs()
 # set random seed
 set.seed(seed4random)
 
-if (Ne_only) num_of_sim_Fc    <- 0
+if (Ne_only) num_of_sim_test    <- 0
 
 if (length(sample_size)==1) sample_size <- c(sample_size,sample_size)
 if (length(sample_size)>2)  sample_size <- sample_size[1:2]

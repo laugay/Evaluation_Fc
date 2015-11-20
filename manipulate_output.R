@@ -1,32 +1,7 @@
 ############# FUNCTION to identify multiple occurences on the same locus
 duplicated2 <- function(x) duplicated(x) | duplicated(x, fromLast=TRUE)
 
-
-##### FUNCTION TO TEST IF M2 HAS THE FREQUENCIES OK FOR THE FSTAT TEST...
-m2.gbmaf <- function(loc_list,MAF_threshold){
-  m2_test <-FALSE
-  ml <- loc_list[which(loc_list[,"type"]=="m2"),]
-  nx <- (ml[1,"derived.x"] + ml[1,"ancestral.x"])
-  px <- ml[1,"derived.x"]/nx
-  ny <- (ml[1,"derived.y"] + ml[1,"ancestral.y"])
-  py <- ml[1,"derived.y"]/ny
-  if((px+py)/2 >= MAF_threshold && (px+py)/2 <= (1-MAF_threshold) ){
-    m2_test <- TRUE
-  }else{m2_test <- FALSE}
-  
-  return(m2_test)
-}
-
-
-
-
-
-
-
-
-
-
-
+# Make a table with the info of all polymorphic site at the population level
 Make_SNP_table <- function (file_t1,
                             file_t2,
                             file_fixed) {
@@ -151,7 +126,7 @@ Make_SNP_table <- function (file_t1,
                removed_loci=removed_loci) )
 }
 
-
+# makes a sample of individuals
 Make_sample <- function (haplotypes_1,
                          haplotypes_2,
                          SNP_table,

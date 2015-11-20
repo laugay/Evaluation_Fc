@@ -1,3 +1,142 @@
+#	The input data file should be formatted as follows:
+#
+#	1	1	0	1	2	2	1	0
+#	2	1	0	1	0	0	1	2
+#	1	2	1	1	0	0	1	2
+#	2	2	2	1	1	2	0	2
+#	3	2	2	2	1	1	1	1
+#
+#	Each line corresponds to an individual
+# 	The first column contains IDs for individual
+# 	The second column contains IDs for sampled demes
+# 	The next columns correspond to loci
+# 	`0' corresponds to homozygotes for type-1 alleles
+# 	`1' corresponds to heterozygotes
+# 	`2' corresponds to homozygotes for type-2 alleles
+
+FC_outlier_test <- function(data,infile=NA,MAF_threshold,delta_T,num_of_sim_test){
+  # read the data
+  if (!is.na(infile)) data <- read.table(infile) 
+  
+  nbr.pops <- length(unique(data[,2]))																# compute the number of samples
+  nbr.loci <- ncol(data)-2																						# compute the number of loci
+  stopifnot(nbr.pops==2) 
+  
+  
+  # compute Fst, Fis, Fc
+  Fstats   <- compute_Fstats(data,MAF_threshold=MAF_threshold)
+  # compute Ne estimates
+  Ne_hat_FST  <- EstimateNe.F_ST(Fstats$F_ST,selection_period_duration)
+  Ne_hat      <- round(Ne_hat_FST)
+  
+  # set of unique initial allele frequencies (minor allele)
+  starting_freq <- Fstats$p[1,] 
+  starting_freq[starting_freq>0.5] <- 1-starting_freq[starting_freq>0.5]
+  
+
+  parameter_combinations <- matrix(nrow=0,ncol=3)
+  p_value <- array(NA,dim=nbr.loci)
+  for (locus in seq_len(nbr.loci)) {
+    
+    if (Fstats$maf[locus]){
+      position <- intersect(intersect(which(parameter_combinations[,1]==starting_freq[locus]),
+                                      which(parameter_combinations[,2]==Fstats$n[1,locus])),
+                                      which(parameter_combinations[,3]==Fstats$n[2,locus]))
+      if (length(position)==1){
+        FC_distribution <- get(paste0("FC_distribution_",position))
+      }else{
+        parameter_combinations <- rbind(parameter_combinations,c(starting_freq[locus],Fstats$n[1,locus],Fstats$n[2,locus]))
+        FC_distribution <- Drift.simulation.4.test(Ne=Ne_hat,
+                                                   dT=delta_T,
+                                                   starting_freq=starting_freq[locus],
+                                                   sample_size=Fstats$n[,locus],
+                                                   num_of_sim_test=num_of_sim_test,
+                                                   MAF_threshold=MAF_threshold)
+        assign( paste0("FC_distribution_",nrow(parameter_combinations)) , FC_distribution )
+      }
+      p_value[locus] <- sum(FC_distribution[as.numeric(names(FC_distribution)) >= Fstats$F_C_locus[locus] ])/num_of_sim_test
+      remove(FC_distribution)
+    }
+  }
+  
+  results_total    <- list(F_ST  =Fstats$F_ST,
+                           F_IS  =Fstats$F_IS,
+                           F_C   =Fstats$F_C,
+                           F_IS  =Fstats$F_IS,
+                           Ne_hat=Ne_hat_FST)
+  
+  results_by_locus <- data.frame(F_ST=Fstats$F_ST_locus,
+                            F_IS=Fstats$F_IS_locus,
+                            F_C =Fstats$F_C_locus,
+                            p_value,
+                            maf=Fstats$maf)
+
+  return(list(results_total=results_total,results_by_locus=results_by_locus)) 
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Drift.simulation.4.test <- function(Ne,dT,starting_freq,sample_size,num_of_sim_test,MAF_threshold){
+  if (starting_freq==0){
+    px <- rep(1/(2*sample_size[1]) ,num_of_sim_test)
+  }else{
+    px <- rep(starting_freq,num_of_sim_test)
+  }
+  starting_freq <- rep(starting_freq,num_of_sim_test)
+  py <- rep(NA,num_of_sim_test)
+  sim <- 1
+  while (sim <= num_of_sim_test) {
+    f.drift <- px[sim]
+    for (g in 1:dT) {
+      f.drift <- (rbinom(1,Ne,f.drift)) / Ne
+    }
+    py[sim] <- rbinom(1, 2*sample_size[2],f.drift) / (2 * sample_size[2])
+    if (((px[sim] + py[sim]) / 2) >= MAF_threshold && ((px[sim] + py[sim]) / 2) <= (1-MAF_threshold) ) {
+      sim <- sim + 1
+    }
+  }
+  F_C.numerator   <- (starting_freq - py)^2
+  F_C.denominator <- ((starting_freq + py) / 2 - starting_freq * py)
+  FC_sim <- F_C.numerator/F_C.denominator
+  FC_distribution <- table(sort(FC_sim))
+  return(FC_distribution)
+}
+
+
+
+
+####### Create filter for loci using a maf threshold
+maf_filter <- function(p,MAF_threshold){
+  test <- rbind( (p[1,]+p[2,])/2 >= MAF_threshold , (p[1,]+p[2,])/2 <= (1-MAF_threshold)) 
+  test <- apply(test,2,all)
+  return(test)
+}
+
+
+
+
+
 ######## Estimating Effective Population Size (Ne)
 EstimateNe.F_C <- function(FC,dT,S1,S2) {
   Ne_hat <- 2*((dT -2)/ (2*(FC - (1/(2*S1)) - (1/(2*S2)))))
@@ -5,7 +144,7 @@ EstimateNe.F_C <- function(FC,dT,S1,S2) {
   return(Ne_hat)
 }
 EstimateNe.F_ST <- function(Fst_hat,dT) {
-  Ne_hat <- dt * (1 - Fst_hat) / (2 * Fst_hat) 
+  Ne_hat <- dT * (1 - Fst_hat) / (2 * Fst_hat) 
   if (Ne_hat<0) Ne_hat <- NA
   return(Ne_hat)
 }
@@ -132,7 +271,7 @@ FstatFun_from_dataframe <- function (SNP_list,maf,dT,nbsimul,MAF_threshold) {
 #	           All:  0.1847      0.0310      0.2099
 #	-----------------------------------------------
 
-compute_Fstats <- function (data,infile=NA) {                       # compute the multi-locus estimate of F_ST for diploid data, following Weir (1996)
+compute_Fstats <- function (data,infile=NA,MAF_threshold=0.0) {   # compute the multi-locus estimate of F_ST for diploid data, following Weir (1996)
   
   if (!is.na(infile)) data <- read.table(infile)                  # read the data
   rownames(data) <- NULL																				  # rename the rows
@@ -166,6 +305,7 @@ compute_Fstats <- function (data,infile=NA) {                       # compute th
   p.1 <- (2 * n - counts) / (2 * n)																# compute the allele frequency for type-1 alleles (per sample and per locus)
   p.2 <- counts / (2 * n)																					# compute the allele frequency for type-2 alleles (per sample and per locus)
   
+  
   vec.p.1.bar <- colSums(2 * n - counts) / colSums(2 * n)					# compute the overall allele frequency for type-1 alleles (per locus)
   vec.p.2.bar <- colSums(counts) / colSums(2 * n)									# compute the overall allele frequency for type-2 alleles (per locus)
   
@@ -192,15 +332,18 @@ compute_Fstats <- function (data,infile=NA) {                       # compute th
   F_IS_locus <-        (MSI - MSG) / (MSI + MSG)                         # compute the F_IS at each locus
   #F_IT_locus <- 1 - (2 * nc * MSG) / (MSP + (nc - 1) * MSI + nc * MSG)   # compute the F_IT at each locus
   
-  F_ST <- sum(MSP - MSI) / sum(MSP + (nc - 1) * MSI + nc * MSG)		# compute the multilocus F_ST (see Weir 1996, p. 178)
-  F_IS <- sum(MSI - MSG) / sum(MSI + MSG)                         # compute the multilocus F_IS
+
+  maf <- maf_filter(p.1,MAF_threshold)
+  
+  F_ST <- sum(MSP[maf] - MSI[maf]) / sum(MSP[maf] + (nc[maf] - 1) * MSI[maf] + nc[maf] * MSG[maf])		# compute the multilocus F_ST (see Weir 1996, p. 178)
+  F_IS <- sum(MSI[maf] - MSG[maf]) / sum(MSI[maf] + MSG[maf])                         # compute the multilocus F_IS
 
   
   if (length(lst.pops)==2){
     F_C.numerator   <- (p.1[1,] - p.1[2,])^2
     F_C.denominator <- ((p.1[1,] + p.1[2,]) / 2 - p.1[1,] * p.1[2,])
-    F_C_locus       <- FC.numerator/FC.denominator
-    F_C             <- sum(FC.numerator)/sum(FC.denominator)
+    F_C_locus       <- F_C.numerator/F_C.denominator
+    F_C             <- sum(F_C.numerator[maf])/sum(F_C.denominator[maf])
 
     Fstats <- list(F_ST = F_ST,
                    F_IS = F_IS,
@@ -209,14 +352,16 @@ compute_Fstats <- function (data,infile=NA) {                       # compute th
                    F_IS_locus = F_IS_locus,
                    F_C_locus  = F_C_locus,
                    p = p.1,
-                   n = n)
+                   n = n,
+                   maf=maf)
   }else{
     Fstats <- list(F_ST = F_ST,
                    F_IS = F_IS,
                    F_ST_locus = F_ST_locus,
                    F_IS_locus = F_IS_locus,
                    p = p.1,
-                   n = n)
+                   n = n,
+                   maf=maf)
   }
   return (Fstats)
 }

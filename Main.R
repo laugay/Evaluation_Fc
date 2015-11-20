@@ -27,12 +27,11 @@ require(batch)
 # (necessary to input large numbers in SLiM, which does not take scientific notation as input)
 options("scipen"=999)
 
-# tools to write/read SLiM input/output
+# functions to write/read SLiM input/output
 source("slim_tools.R")
 source("manipulate_output.R")
-# tools to calculate F statistics
+# functions to calculate F statistics and analyse data
 source("F_stats_tools.R")
-
 #----------------------------------------------------------------------
 # PARAMETERS: DEFAULT VALUES + VALUES FROM COMMAND LINE CALL ARGUMENTS
 #----------------------------------------------------------------------
@@ -58,8 +57,24 @@ source("simulation_selection.R")
 # sample individuals and loci
 source("sample_output.R")
 
-# calculate F statistics, estimate N
-#source("estimate_demography.R")
+# Analyse data
+# 1. estimate Fst, Ne (all loci)
+# 2. test for outliers (locus by locus)
+results <- FC_outlier_test(SNP_data$genotype_data,
+                           MAF_threshold=MAF_threshold,
+                           delta_T=selection_period_duration,
+                           num_of_sim_test=num_of_sim_test)
+
+(results)
+
+
+
+
+# Ne_hat_FC   <- EstimateNe.F_C (Fstats$F_C,selection_period_duration,sample_size,sample_size)
+# selfing_hat <- 2*Fis_hat/(1+Fis_hat)
+# write(paste("Estimated Fst between time samples:"       ,Fst_hat,    "; Expected value:", E_Fst), file=log_file,append=T)
+# write(paste("Estimated effective population size (Fst):",Ne_hat_FST, "; True value:",     E_Ne) , file=log_file,append=T)
+# write(paste("Estimated effective population size (Fc):" ,Ne_hat_FC,  "; True value:",     E_Ne) , file=log_file,append=T)
 
 
 
